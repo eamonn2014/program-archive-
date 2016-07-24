@@ -1,5 +1,5 @@
 ---
-title: "Pierre Rémond de Montmort's matching problem 1708"
+title: "Pierre Remond de Montmort's matching problem 1708"
 date: "Sunday, May 21, 2016"
 output: html_document
 ---
@@ -117,6 +117,8 @@ output: html_document
 **Reference** 
 
 A. Hald, A History of Probability and Statistics and their Applications Before 1750, Wiley, New York, 1990.  
+
+https://github.com/eamonn2014/programs/blob/master/deMontMort.Rmd  
 
 **Computing Environment**
 
