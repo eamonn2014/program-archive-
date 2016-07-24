@@ -1,0 +1,724 @@
+---
+title: "Bayesian and frequentist analysis of randomised trial adjusting for covariates"
+author: "Eamonn O'Brien"
+date: '`r format(Sys.time(), "%d %B, %Y")`'
+output:
+  html_document: default
+  pdf_document:
+    fig_caption: yes
+    fig_height: 6
+    fig_width: 8
+    number_sections: yes
+---
+
+### Introduction
+
+Many randomised controlled trials (RCTs) are analysed in a simple manner using only the randomised treatment as the independent variable. We show when the response outcome is continuous that precision of the treatment effect estimate is improved when adjusting for baseline covariates in a randomised controlled trial. We do not expect covariates to be related to the treatment assignment because of randomisation, but they may be related to the outcome, they are therefore not considered to be confounding. However, differences between the outcome which can be attributed to differences in the covariates can be removed, this results in a more precise estimate of treatment effect. This should be considered more often as sample sizes can be reduced. This is not the case for logistic models (principle of the non collapsibility of the odds ratio).
+
+Here, we perform an investigation of adjusted and unadjusted power in the setting of RCT when there is a predictive biomarker; a predictive biomarker is one which potentially provides information that can help to guide treatment decisions. We go on to analysis the simulated trial using frequentist and Bayesian approaches.
+
+
+```{r set-options, echo=FALSE, cache=FALSE, warning = FALSE}
+
+        rm(list=ls())
+        set.seed(874)
+        startTime<-proc.time()
+        library(knitr)
+        options(width=120)
+        opts_chunk$set(comment = "", warning = FALSE, message = FALSE,
+                       echo = TRUE, tidy = FALSE, size="tiny",  cache=FALSE,
+                       progress=TRUE,
+                       cache.path = 'program_Cache/',
+                       fig.path='figure/')
+         
+        knitr::knit_hooks$set(inline = function(x) {
+          knitr:::format_sci(x, 'md')
+        })
+```
+
+```{r prerequisites, echo=FALSE}
+ 
+        where<-"home" #this is used in the sourced program 
+ 
+        path <- ""  
+     
+        work<-    paste("X:/", path, sep = "")
+        nonwork<- paste("~/X/", path, sep = "")
+        if (where=="home") {wd<- nonwork} else {wd<-work}
+        
+        path2 <- "CUSTOMER\\SYROS\\CLIA VAIDATION RARalpha\\VACUFUGE\\DATA"  
+        work2<-    paste("X:/", path2, sep = "")
+        nonwork2<- paste("~/X/", path2, sep = "")
+        
+        if (where=="home") {wd2<- nonwork2} else {wd2<-work2}
+        
+        work3<-    paste("X:/FUNCTIONS/R", sep = "")
+        nonwork3<- paste("~/X/FUNCTIONS/R", sep = "")
+        
+        if (where=="home") {wd3<- nonwork3} else {wd3<-work3}
+        setwd(wd)
+        opts_knit$set(root.dir = wd)      ##THIS SETS YOUR WORKING DIRECTORY
+        
+ 
+```
+ 
+ 
+```{r preliminaries perhaps , echo=FALSE, results='hide'}
+
+
+        list.of.packages <- c("rms","ggplot2", "reshape", "rethinking")
+        
+        new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+        if(length(new.packages)) install.packages(new.packages)
+        
+        sapply(X = list.of.packages, require, character.only = TRUE)
+
+
+        p3 <- function(x) {formatC(x, format="f", digits=3)}
+        p4 <- function(x) {formatC(x, format="f", digits=4)}
+        p2 <- function(x) {formatC(x, format="f", digits=2)}
+         p1 <- function(x) {formatC(x, format="f", digits=0)}
+        # p1 <- function(x) {print(formatC(x, format="f", digits=1),quote=FALSE)}
+        # p2 <- function(x) {print(formatC(x, format="f", digits=2),quote=FALSE)}
+        # p3 <- function(x) {print(formatC(x, format="f", digits=3),quote=FALSE)}
+        # p4 <- function(x) {print(formatC(x, format="f", digits=4),quote=FALSE)}
+        #perhaps help colour plot text based on loop count
+        is.even <- function(x){ x %% 2 == 0 }
+  
+```            
+
+### Prepare for simulations
+
+```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='asis' , cache=FALSE }  
+ 
+      alpha <- 0.05
+      n.sims <- 500
+      N <- seq(from=50, to=300, by=20)        # Trial sizes to explore
+      pow.adj <- pow <- rep(NA, length(N))    # objects to capture power estimates
+
+```
+
+### Function to investigate power for a RCT including a predictive biomarker contingent on the analyses perfomed (adjusted and unadjusted)
+
+```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='markup', cache=TRUE }   
+
+      for (j in 1:length(N)){
+        
+      n <- N[j]
+      significant.experiments.adj  <- significant.experiments.unadj <- rep(NA, n.sims)
+
+      for (i in 1: n.sims){
+
+      # covariates   
+      effectofbiomarkerC <- -1       # Hypothesize effect of biomarker on outcome in ctrl
+      effectofbiomarkerT <-  1       # Hypothesize effect of biomarker on outcome in trt
+      effectofage <- 0               # Hypothesize effect of age on outcome
+      effectofsex <- 1               # Hypothesize effect of gender on outcome
+      effectoftreatment <- 1         # Hypothesize treatment effect on outcome
+      
+      # covariate effects
+      baseline <- rnorm(n=n, mean=100, sd=1)          # patient baseline response
+      treat <- effectoftreatment*(runif(n)<0.5)       # randomised treatment effect
+      sex <- c(rep("F", n/2), rep("M", n/2))          # Generate "sex" covariate
+      age <- sample(x=18:65, size=n, replace=TRUE)    # Generate "age" covariate
+      biomarker <- sample(x=0:1000, size=n, replace=TRUE)/1000   #  generate biomarker score covariate
+      
+      # hypothesize a treatxbiomarker interaction; diff. treatement effect depending on biomarker score
+      biomarker.eff <- ifelse(treat==0, effectofbiomarkerC*biomarker, effectofbiomarkerT*biomarker ) 
+
+      # create the outcome, with random error
+      Y <-  effectofsex*(sex=="M") + effectofage*age + biomarker.eff + baseline + treat + rnorm(n)
+
+      # prepare for analysis
+      d <- data.frame( baseline=baseline , Y=Y , treat=treat , 
+                       biomarker=biomarker, sex=sex, age= age  )
+      dd <- datadist(d, data=d)
+      options(datadist="dd")
+       
+      # unadjusted analysis, extract p-value for biomarker treatment interaction  
+      f <- ols( Y ~  biomarker * treat, d)
+      fa <- anova(f)
+      p.value <- as.matrix(fa)[5,5]
+       
+      # Adjusted analysis, extract p-values for biomarker x treatment interaction adjusted for covariates 
+      f <- ols( Y ~ baseline + sex + age + biomarker * treat, d)
+      fa <- anova(f)
+      p.value.adj <- as.matrix(fa)[8,5]
+       
+      # collect p values
+      significant.experiments.unadj [i] <- (p.value <= alpha)
+      significant.experiments.adj [i]   <- (p.value.adj <= alpha)
+        
+      }
+          # calculate power
+          pow[j]     <- mean(significant.experiments.unadj)
+          pow.adj[j] <- mean(significant.experiments.adj)
+        
+      }
+
+
+```            
+\newpage 
+
+### Plot the results
+
+```{r echo=TRUE, fig.cap="Profiles of power with sample size"} 
+
+      df <-  data.frame(N, pow, pow.adj)
+      df2 <- melt(data = df, id.vars = "N")     # melt the data to a long format and plot
+      
+      g <- ggplot(data = df2, aes(x = N, 
+          y = value, 
+          color= factor(variable,  labels = c("Unadjusted", "Adjusted")))) +
+          geom_line()
+      g <- g + ylab("Power") + xlab("Sample size") + labs(color = "Analysis")
+
+      print(g)
+
+     
+   
+```
+
+### Based on power estimates of adjusted analyses a trial of 150 patients takes place
+
+```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='markup' }   
+   
+      set.seed(87564)  
+      n <- 150
+      
+      effectofbiomarkerC <- -1       # Hypothesize the "effect" of biomarker on response in ctrl
+      effectofbiomarkerT <-  1       # Hypothesize the "effect" of biomarker on response in trt
+      effectofage <- 0               # Hypothesize the "effect" of age on response
+      effectofsex <- 1               # Hypothesize the "effect" of gender on response
+      effectoftreatment <- 1         # Hypothesize the treatment effect on response
+      
+      baseline <- rnorm(n=n, mean=0, sd=1)            # patient baseline response measurement
+      treat <- effectoftreatment*(runif(n)<0.5)       # randomised treatment effect
+      sex <- c(rep("F", n/2), rep("M", n/2))          # Generate "sex" covariate
+      age <- sample(x=18:65, size=n, replace=TRUE)    # Generate "age" covariate
+      # hypothesis a treat x biomarker, generate biomarker score covariate
+      biomarker <- sample(x=0:1000, size=n, replace=TRUE)/1000  
+      
+      # Create the interaction
+      biomarker.eff <- ifelse(treat==0, effectofbiomarkerC*biomarker, effectofbiomarkerT*biomarker ) 
+      
+      # Create the response outcome, with random error
+      Y <-  effectofsex*(sex=="M") + effectofage*age + biomarker.eff + baseline + treat + rnorm(n)
+      
+      
+```
+
+### Prepare for analysis, create a data frame
+
+```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='markup' }         
+    
+      d <- data.frame( baseline=baseline , Y=Y , treat=treat , 
+                       biomarker=biomarker, sex=sex, age= age  )
+      dd <- datadist(d, data=d) ; options(datadist="dd")
+      
+```
+
+### Analysis, the regression table
+
+```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='markup' }   
+      
+      f<- ols( Y ~ baseline + sex + age + biomarker * treat  , d,  x=TRUE, y=TRUE)
+      print(f)
+      
+```
+
+### Compute analysis of variance table for the fitted model object with $\chi^2$ statistics. Joint tests of all interaction terms in the model are also performed.
+
+```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='markup' } 
+ 
+      an <- anova(f, main.effect=FALSE, test=c('Chisq')) # try anova(f, test=c('F') ) # F tests
+      print(an, 'subscripts')
+
+```            
+\newpage 
+
+### Plot the results, show the effect of the main effect combined with all interactions involving that factor.
+
+```{r echo=TRUE, fig.cap="The default for plot(anova()) is to display the Wald Chi2 statistic minus its degrees of freedom for assessing the partial effect of each variable. Even though this is not scaled [0,1] it is probably the best method in general because it penalizes a variable requiring a large number of parameters to achieve the Chi2. If a predictor interacts with any other predictor(s), the Chi2  and partial R2 measures combine the appropriate interaction effects with main effects. For example if the model was y ~ biomarker * treatment the statistic for treatment is the combined effects of treatment as a main effect plus the effect modification that treatment provides for the biomarker effect. This is an assessment of whether there is a difference between the treatment for any biomarker score."} 
+   
+     plot(an, 
+     what=c("proportion chisq"), # also try what='proportion R2' chisqminusdf
+     xlab=NULL, pch=16, 
+     rm.totals=TRUE, rm.ia=FALSE, rm.other=NULL, 
+     sort=c("descending"), margin=NULL, pl=TRUE,
+     trans=NULL, ntrans=40 )
+ 
+      
+          
+
+```      
+
+### Compute predicted values and confidence limits, specify which predictors are to vary
+
+```{r echo=TRUE, fig.cap="Show predicted values and confidence bands"}         
+      
+      plot(Predict(f),   anova=an, pval=TRUE)     # marginal main effects
+
+```
+      
+### The key result: Compute predicted values and confidence limits, specify which predictors are to vary. The effect of the biomarker in control arm on outcome moving from 0 to 1 signature score and the treatment effect on outcome when biomarker score is fixed at the median biomarker score.
+
+```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='markup' }     
+ 
+      summary(f, biomarker=c(0,1), treat=0, est.all=FALSE) 
+      
+```
+
+### The key result: the adjusted effect of the biomarker in the treatment arm on outcome moving from 0 to 1 signature score. The treatment effect on outcome is shown when biomarker score is fixed at the median biomarker score.
+
+
+```{r echo=TRUE, fig.cap="Biomarker effect on outcome in treatment arm"}        
+         
+      summary(f, biomarker=c(0,1), treat=1, est.all=FALSE) 
+      ggplot(Predict(f,  biomarker, treat), anova=an, pval=TRUE)    # interaction      
+      
+```            
+
+### Plot the other covariate effects for information. Show sex main effect on outcome.
+
+```{r echo=TRUE, fig.cap="Sex main effect on outcome"}  
+      
+      summary(f, sex=c("M","F"), est.all=FALSE) 
+      ggplot(Predict(f,   sex), anova=an, pval=TRUE)   
+      
+```            
+
+### Show age main effect on outcome.
+
+```{r echo=TRUE, fig.cap="Age main effect on outcome"}        
+      
+      summary(f, age=c(18,65), est.all=FALSE) 
+      ggplot(Predict(f,  age), anova=an, pval=TRUE)     
+      
+```            
+
+### Show baseline main effect on outcome. A strong relationship as expected, patients with high values of the response at baseline would be expected to have high values at the outcome of the trial. 
+
+```{r echo=TRUE, fig.cap="Baseline main effect on outcome"}        
+      
+      summary(f, baseline=c(-1,1), est.all=FALSE) 
+      ggplot(Predict(f,  baseline), anova=an, pval=TRUE)      
+    
+      
+```
+
+### Reproduce the regression table using the summary function, except showing the effect of the biomarker on outcome in control arm only
+
+```{r echo=TRUE, fig.cap="Summary of effects"}     
+             
+      summary(f, baseline=c(0,1), sex=c("M","F") , age=c(0,1), 
+                 biomarker=c(0,1),  treat=c(0)  )
+      
+```
+
+### The effect with changing biomarker scores in the treatment arm.
+
+
+```{r echo=TRUE, fig.cap="Summary of effects"}            
+
+      summary(f, baseline=c(0,1), sex=c("M","F") , age=c(0,1), 
+                biomarker=c(0,1),  treat=1 )
+      
+```
+
+### The contrast function, match the regression table for treatment effect
+
+```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='markup' }        
+  
+ 
+      contrast(f,list(treat=1, biomarker=0, age=0, baseline=0),
+                 list(treat=0, biomarker=0, age=0, baseline=0))
+      
+```
+
+### The contrast function, treatment effect when covariates held at median
+
+```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='markup' }        
+ 
+         contrast(f,list(treat=1, biomarker=median(biomarker), 
+                       age=median(age), baseline=median(baseline), sex="F"),
+                 list(treat=0, biomarker=median(biomarker), 
+                      age=median(age), baseline=median(baseline), sex="F"))
+      
+         contrast(f, list(treat=1),list(treat=0))
+        
+
+```
+
+### Assumption check
+
+```{r echo=TRUE, fig.cap="Check OLS assumptions" }        
+         
+          
+    r <- residuals(f)
+    plot(r); abline(h=0)
+    qqnorm(r) ; qqline(r)
+         
+   # resid(f, "dfbetas")
+   # which.influence(f)      
+         
+```
+
+### Bayesian analysis using STAN, the model statement
+
+```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='markup' }     
+         
+          d$sex2 <- as.numeric(ifelse(d$sex=="M", 1,0)  )  
+ 
+          m1 <- map( alist( Y ~ dnorm(mu, sigma), 
+                         
+                           mu <- b0 + b1*baseline + b2*sex2 + b3*age +
+                           b4*biomarker + b5*treat + b6*biomarker*treat, 
+                         
+                           b0 ~ dnorm(0, 100), 
+                           c(b1, b2, b3, b4, b5, b6) ~ dnorm(0, 10), 
+                           sigma ~ dunif(0, 10) ), 
+                    data=d )
+        
+          
+```
+
+### Bayesian analysis using STAN, frequentist and Bayesian results
+
+```{r echo=FALSE, eval=TRUE, tidy=FALSE, results='markup' }           
+          
+       f
+       precis(m1)
+      
+      
+```
+
+### Plot the predicted effects adjusted for a specific covariate pattern. Counterfactual samples of patients are simulated and plotted. To match the frequentist prediction the Bayesian analysis is adjusted to the median values for continuous variables.
+
+```{r echo=TRUE, results='hide',   fig.cap="Predicted effects (Statistical Rethinking page 129)", fig.show='asis'}     
+       
+      par(mfrow=c(1,2))
+      
+      P.biomarker <- seq( from=0 , to=1, length.out=75 ) # Assess effect across this range
+      P.baseline <- mean( d$baseline )                   # Hold Baseline at mean
+      P.sex <- 1                                         # Hold sex at MALE
+      P.age <- mean(d$age)                               # Hold age at mean 
+      
+      # use these to match the rms prediction output
+      P.baseline <- median(d$baseline)                   # duplicate rms
+      P.age <- median(d$age)
+      P.sex <- 0
+      
+      pred.data1 <- data.frame(                          # Make predictions for this dataset
+        biomarker=P.biomarker,
+        baseline=P.baseline,
+        sex2=P.sex,
+        age=P.age,
+        treat=0                                          # Treatment 0
+      )
+
+      # compute counterfactual mean response (mu1)
+      mu1 <- link( m1 , data=pred.data1 )  # default 1000 
+      mu.mean <- apply( mu1 , 2 , mean )
+      mu.PI <- apply( mu1 , 2 , PI )
+
+      # simulate counterfactual response outcomes
+      R.sim1 <- sim( m1 , data=pred.data1 , n=1e4 )
+      R.PI <- apply( R.sim1 , 2 , PI )
+
+      # display predictions, hiding raw data with type="n"  
+      plot( Y ~ biomarker , data=d , type="n" )
+      mtext( "treatment 0" )
+      lines( P.biomarker , mu.mean )
+      shade( mu.PI , P.biomarker , col= col.alpha("blue", 0.15))
+      shade( R.PI ,  P.biomarker , col= col.alpha("purple", 0.15))
+      points(R.sim1[1,] ~ P.biomarker)
+  
+      # repeat all again but for the treatment arm
+      pred.data2 <- data.frame(
+        biomarker=P.biomarker,
+        baseline=P.baseline,
+        sex2=P.sex,
+        age=P.age,
+        treat=1                                          # Treatment 1
+      )
+
+      # compute counterfactual mean response (mu2)
+      mu2 <- link( m1 , data=pred.data2 )
+      mu.mean <- apply( mu2 , 2 , mean )
+      mu.PI <- apply( mu2 , 2, PI )
+  
+      # simulate counterfactual response outcomes
+      R.sim2 <- sim( m1 , data=pred.data2 , n=1e4 )
+      R.PI <- apply( R.sim2 , 2 , PI )
+
+      # display predictions, hiding raw data with type="n"
+      plot( Y ~ biomarker , data=d , type="n" )
+      mtext( "treatment 1" )
+      lines( P.biomarker , mu.mean )
+      shade( mu.PI , P.biomarker , col= col.alpha("blue", 0.15))
+      shade( R.PI ,  P.biomarker , col= col.alpha("purple", 0.15))
+      
+      points(R.sim2[1,] ~ P.biomarker)
+      mtext(paste("Plot of the predicted effects with simulated patients in each treatment group,\n adjusted to baseline ", p4(P.baseline),", age ", P.age," and sex coded ", P.sex, " female", sep="") ,
+      side = 3, line = -2, outer = TRUE)
+      par(mfrow=c(1,1))
+
+    # plot(precis(m1))
+      
+```
+
+### Plot the predicted teatment effects, showing treatment effect modification with biomarker. Counterfactual samples of patients are simulated and plotted. `r paste("Adjusted to baseline ", p4(P.baseline),", age ", P.age," and sex coded ", P.sex, " female", sep="")`
+
+```{r echo=TRUE, fig.cap="Predicted effects (Statistical Rethinking page 129)"   }
+
+        mu.diff <- mu2 - mu1
+        r.diff <- R.sim2 - R.sim1
+   
+        mu.mean <- apply( mu.diff,  2 , mean)
+        mu.PI <-   apply( mu.diff , 2 , PI)
+        R.PI <-    apply( r.diff , 2 , PI)
+         
+        plot( Y ~ biomarker , data=d , type="n" , ylab="Treatment difference trt-ctrl" )
+        text( "Difference in treatment effect with biomarker score" )
+        lines( P.biomarker , mu.mean )
+        shade( mu.PI , P.biomarker , col= col.alpha("blue", 0.15))
+        shade( R.PI ,  P.biomarker ,  col= col.alpha("purple", 0.15))
+        x <- sample(1:1000,1)
+        points(r.diff[x,] ~ P.biomarker)
+        abline(h=0)
+      
+   
+```
+
+### Model comparison with main effects model m2. The interaction model's (m1) weight means there is probability of 0.81 that the model will make the best predictions on new data, conditional on the set of models considered.
+
+```{r echo=FALSE, results='markup'}
+
+ 
+      m2 <- map( alist( Y ~ dnorm(mu, sigma), 
+                  
+                  mu <- b0 + b1*baseline + b2*sex2 + b3*age +
+                    b4*biomarker + b5*treat , 
+                  
+                  b0 ~ dnorm(0, 100), 
+                  c(b1, b2, b3, b4, b5) ~ dnorm(0, 10), 
+                  sigma ~ dunif(0, 10) ), 
+           data=d )
+
+
+    biomarker.models <- compare(m1, m2)
+    print(biomarker.models )
+    plot(biomarker.models , SE=TRUE, dSE=TRUE)
+ 
+```
+
+### Assumption check
+
+```{r echo=TRUE, fig.cap="Check chains are mixing" }  
+
+    pairs(m1)
+    post <-extract.samples(m1)
+    par(mfrow=c(2,4))
+    for ( i in 1:8 )  { plot(post[,i] , type='l', main=names(post)[i]) }
+    par(mfrow=c(1,1))
+      
+      
+```
+
+### For completion the effects of the other covariates
+
+```{r echo=FALSE, results='hide',   fig.cap="Effects of covariates", fig.show='asis'}    
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+          P.biomarker <- median(d$biomarker)                   # Hold
+          P.baseline <- median(d$baseline) # Assess
+          P.sex <- 0                                           # Hold sex at FEMALE
+          P.age <- seq( from=18, to=65, length.out=150 )                              # Hold age at median 
+          P.treat=0                                            # Hold
+          
+          namez <- "Age"
+          x <- P.age                       # define the variable here, so less typing later
+          
+          pred.data1 <- data.frame(                          # Make predictions for this dataset
+            biomarker=P.biomarker,
+            baseline=P.baseline,
+            sex2=P.sex,
+            age=x,
+            treat=P.treat                                     
+          )
+          
+          # compute counterfactual mean response (mu1)
+          mu1 <- link( m1 , data=pred.data1 )   
+          mu.mean <- apply( mu1 , 2 , mean )
+          mu.PI <- apply( mu1 , 2 , PI )
+          
+          # simulate counterfactual response outcomes
+          R.sim1 <- sim( m1 , data=pred.data1 , n=1e4 )
+          R.PI <- apply( R.sim1 , 2 , PI )
+          
+          # display predictions, hiding raw data with type="n"  
+          plot( Y ~ x , data=d , type="n", xlab=paste(namez), ylab="Response" )
+          mtext(paste(
+            "Adjusted to treatment",P.treat,"; biomarker",P.biomarker,"; Sex",P.sex,
+            sep=" "))
+          lines( x , mu.mean )
+          shade( mu.PI , x , col= col.alpha("blue", 0.15))
+          shade( R.PI ,  x , col= col.alpha("purple", 0.15))
+          points(R.sim1[1,] ~ x)
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      P.biomarker <- median(d$biomarker)                   # Hold
+      P.baseline <- seq( from=-1, to=2.5, length.out=150 ) # Assess
+      P.sex <- 0                                           # Hold sex at FEMALE
+      P.age <- median(d$age)                               # Hold age at median 
+      P.treat=0                                            # Hold
+      
+      namez <- "Baseline"
+      x <- P.baseline                       # define the variable here, so less typing later
+      
+      pred.data1 <- data.frame(                          # Make predictions for this dataset
+        biomarker=P.biomarker,
+        baseline=x,
+        sex2=P.sex,
+        age=P.age,
+        treat=P.treat                                     
+      )
+      
+      # compute counterfactual mean response (mu1)
+      mu1 <- link( m1 , data=pred.data1 )   
+      mu.mean <- apply( mu1 , 2 , mean )
+      mu.PI <- apply( mu1 , 2 , PI )
+      
+      # simulate counterfactual response outcomes
+      R.sim1 <- sim( m1 , data=pred.data1 , n=1e4 )
+      R.PI <- apply( R.sim1 , 2 , PI )
+      
+      # display predictions, hiding raw data with type="n"  
+      plot( Y ~ x , data=d , type="n", xlab=paste(namez), ylab="Response" )
+      mtext(paste(
+        "Adjusted to treatment",P.treat,"; biomarker",P.biomarker,"; Sex",P.sex,
+        "; age", P.age ,sep=" "))
+      lines( x , mu.mean )
+      shade( mu.PI , x , col= col.alpha("blue", 0.15))
+      shade( R.PI ,  x , col= col.alpha("purple", 0.15))
+      points(R.sim1[1,] ~ x)
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+      #FACTOR
+      #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      par(mfrow=c(1,2))
+      P.biomarker <- median(d$biomarker)                   # Hold
+      P.baseline <- median(d$baseline)  
+      P.sex <- c(rep(0,75) , rep(1, 75))                                    # Hold sex at FEMALE
+      P.age <- median(d$age)                               # Hold age at median 
+      P.treat=0                                            # Hold
+      
+      namez <- "Sex"
+      x <- P.sex    #define the variable here, so less typing later
+      
+      pred.data1 <- data.frame(                          # Make predictions for this dataset
+        biomarker=P.biomarker,
+        baseline=x,
+        sex2=P.sex,
+        age=P.age,
+        treat=P.treat                                     
+      )
+      
+      # compute counterfactual mean response (mu1)
+      mu1 <- link( m1 , data=pred.data1 )   
+      mu.mean <- apply( mu1 , 2 , mean )
+      mu.PI <- apply( mu1 , 2 , PI )
+      
+      # simulate counterfactual response outcomes
+      R.sim1 <- sim( m1 , data=pred.data1 , n=1e4 )
+      R.PI <- apply( R.sim1 , 2 , PI )
+      
+     
+      # display predictions, hiding raw data with type="n"  
+      plot( Y ~ x , data=d , type="n", xlab=paste(namez), ylab="Response", xlim=c(-0.2,1.2 ) )
+      mtext( "treatment 0" )
+#       mtext(paste(
+#         "Adjusted to treatment",P.treat,"; biomarker",P.biomarker,"; age", P.age ,"; baseline", p4(P.baseline),
+#         sep=" "))
+      lines( x , mu.mean )
+      shade( mu.PI , x , col= col.alpha("blue", 0.15))
+      shade( R.PI ,  x , col= col.alpha("purple", 0.15))
+      points(R.sim1[1,] ~ jitter(x))
+      #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      P.biomarker <- median(d$biomarker)                   # Hold
+      P.baseline <- median(d$baseline)  
+      P.sex <- c(rep(0,75) , rep(1, 75))                                    # Hold sex at FEMALE
+      P.age <- median(d$age)                               # Hold age at median 
+      P.treat=1                                            # Hold
+      
+      namez <- "Sex"
+      x <- P.sex    #define the variable here, so less typing later
+      
+      pred.data1 <- data.frame(                          # Make predictions for this dataset
+        biomarker=P.biomarker,
+        baseline=x,
+        sex2=P.sex,
+        age=P.age,
+        treat=P.treat                                     
+      )
+      
+      # compute counterfactual mean response (mu1)
+      mu1 <- link( m1 , data=pred.data1 )   
+      mu.mean <- apply( mu1 , 2 , mean )
+      mu.PI <- apply( mu1 , 2 , PI )
+      
+      # simulate counterfactual response outcomes
+      R.sim1 <- sim( m1 , data=pred.data1 , n=1e4 )
+      R.PI <- apply( R.sim1 , 2 , PI )
+      
+      
+      # display predictions, hiding raw data with type="n"  
+      plot( Y ~ x , data=d , type="n", xlab=paste(namez), ylab="Response", xlim=c(-0.2,1.2 ) )
+      mtext( "treatment 1" )
+      mtext(paste(
+        "Adjusted to biomarker",P.biomarker,"; age", P.age ,"; baseline", p4(P.baseline),
+        sep=" "), side = 3, line = -2, outer = TRUE)
+      lines( x , mu.mean )
+      shade( mu.PI , x , col= col.alpha("blue", 0.15))
+      shade( R.PI ,  x , col= col.alpha("purple", 0.15))
+      points(R.sim1[1,] ~ jitter(x))
+      #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      par(mfrow=c(1,1))
+      
+
+
+```
+
+
+
+### References 
+
+  Statistical Rethinking, Richard McElearth post treatment bias p151, WAIC p199 and simulate p129  
+  http://thestatsgeek.com/2014/02/01/adjusting-for-baseline-covariates-in-randomized-controlled-trials/  
+  http://egap.org/content/power-analysis-simulations-r  
+  http://stackoverflow.com/questions/14554558/simulate-a-linear-model-100-times  
+  http://stats.stackexchange.com/questions/155246/which-variable-relative-importance-method-to-use  
+      
+
+\clearpage
+\pagebreak 
+
+
+### Computing Environment
+
+```{r, echo=FALSE}
+#opts_knit$set(root.dir = wd)   ##THIS SETS YOUR WORKING DIRECTORY
+sessionInfo()
+print(wd)
+```
+```{r echo=FALSE}
+stopTime<-proc.time()
+```
+This took `r (stopTime-startTime)[1][[1]]` seconds to execute. 
+  
+

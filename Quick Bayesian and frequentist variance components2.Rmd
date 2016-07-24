@@ -1,0 +1,191 @@
+---
+title: "Nested Variance Components Analysis (Bayesian)"
+author: "Eamonn O'Brien"
+date: '`r format(Sys.time(), "%d %B, %Y")`'
+output:
+  html_document: default
+  pdf_document:
+    fig_caption: yes
+    fig_height: 6
+    fig_width: 8
+    number_sections: yes
+---
+
+### Introduction
+
+Return to this later
+
+
+```{r set-options, echo=TRUE, cache=FALSE, warning = FALSE}
+
+        rm(list=ls())
+        set.seed(874)
+        startTime<-proc.time()
+        library(knitr)
+        options(width=120)
+        opts_chunk$set(comment = "", warning = FALSE, message = FALSE,
+                       echo = TRUE, tidy = FALSE, size="tiny",  cache=FALSE,
+                       progress=TRUE,
+                       cache.path = 'program_Cache/',
+                       fig.path='figure/')
+         
+        knitr::knit_hooks$set(inline = function(x) {
+          knitr:::format_sci(x, 'md')
+        })
+```
+
+```{r prerequisites, echo=TRUE}
+ 
+        where<-"home" #this is used in the sourced program 
+ 
+        path <- ""  
+     
+        work<-    paste("X:/", path, sep = "")
+        nonwork<- paste("~/X/", path, sep = "")
+        if (where=="home") {wd<- nonwork} else {wd<-work}
+        
+        path2 <- ""
+        
+        work2<-    paste("X:/", path2, sep = "")
+        nonwork2<- paste("~/X/", path2, sep = "")
+        
+        if (where=="home") {wd2<- nonwork2} else {wd2<-work2}
+        
+        work3<-    paste("X:/FUNCTIONS/R", sep = "")
+        nonwork3<- paste("~/X/FUNCTIONS/R", sep = "")
+        
+        if (where=="home") {wd3<- nonwork3} else {wd3<-work3}
+        setwd(wd)
+        opts_knit$set(root.dir = wd)  ##THIS SETS YOUR WORKING DIRECTORY
+        
+ 
+```
+ 
+ 
+```{r preliminaries perhaps , echo=TRUE, results='hide'}
+
+
+        list.of.packages <- c("lme4","rethinking", "rstanarm")
+        
+        new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+        if(length(new.packages)) install.packages(new.packages)
+        
+        sapply(X = list.of.packages, require, character.only = TRUE)
+
+
+        p3 <- function(x) {formatC(x, format="f", digits=3)}
+        p4 <- function(x) {formatC(x, format="f", digits=4)}
+        p2 <- function(x) {formatC(x, format="f", digits=2)}
+         p1 <- function(x) {formatC(x, format="f", digits=0)}
+        # p1 <- function(x) {print(formatC(x, format="f", digits=1),quote=FALSE)}
+        # p2 <- function(x) {print(formatC(x, format="f", digits=2),quote=FALSE)}
+        # p3 <- function(x) {print(formatC(x, format="f", digits=3),quote=FALSE)}
+        # p4 <- function(x) {print(formatC(x, format="f", digits=4),quote=FALSE)}
+        #perhaps help colour plot text based on loop count
+        is.even <- function(x){ x %% 2 == 0 }
+  
+```            
+
+### Modelling
+
+```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='markup' , cache=TRUE }  
+ 
+   data(eggs, package="faraway")
+
+      eggs$labtech <- factor(paste0(eggs$Lab,eggs$Technician))
+      eggs$labtechsamp <- factor(paste0(eggs$Lab,eggs$Technician,eggs$Sample))
+      
+      levind1 <- as.numeric(eggs$Lab)
+      levind2 <- as.numeric(eggs$labtech)
+      levind3 <- as.numeric(eggs$labtechsamp)
+      
+      sdscal <- sd(eggs$Fat)
+      
+      eggdat <- list(Nobs=nrow(eggs),
+                     Nlev1=max(levind1),
+                     Nlev2=max(levind2),
+                     Nlev3=max(levind3),
+                     y=eggs$Fat,
+                     levind1=levind1,
+                     levind2=levind2,
+                     levind3=levind3,
+                     sdscal=sdscal)
+      
+      nested.stan <-"
+      data {
+        int<lower=0> Nobs;
+        int<lower=0> Nlev1;
+        int<lower=0> Nlev2;
+        int<lower=0> Nlev3;
+        vector[Nobs] y;
+        int<lower=1,upper=Nlev1> levind1[Nobs];
+        int<lower=1,upper=Nlev2> levind2[Nobs];
+        int<lower=1,upper=Nlev3> levind3[Nobs];
+        real<lower=0> sdscal;
+      }
+      parameters {
+        real mu;
+        real<lower=0> sigmalev1;
+        real<lower=0> sigmalev2;
+        real<lower=0> sigmalev3;
+        real<lower=0> sigmaeps;
+        
+        vector[Nlev1] eta1;
+        vector[Nlev2] eta2;
+        vector[Nlev3] eta3;
+      }
+      transformed parameters {
+        vector[Nlev1] ran1;
+        vector[Nlev2] ran2;
+        vector[Nlev3] ran3;
+        vector[Nobs] yhat;
+        
+        ran1  = sigmalev1 * eta1;
+        ran2  = sigmalev2 * eta2;
+        ran3  = sigmalev3 * eta3;
+        
+        for (i in 1:Nobs)
+          yhat[i] <- mu+ran1[levind1[i]]+ran2[levind2[i]]+ran3[levind3[i]];
+        
+      }
+      model {
+        eta1 ~ normal(0, 1);
+        eta2 ~ normal(0, 1);
+        eta3 ~ normal(0, 1);
+        sigmalev1 ~ cauchy(0, 2.5*sdscal);
+        sigmalev2 ~ cauchy(0, 2.5*sdscal);
+        sigmalev3 ~ cauchy(0, 2.5*sdscal);
+        sigmaeps ~ cauchy(0, 2.5*sdscal);
+        y ~ normal(yhat, sigmaeps);
+      }"
+      
+      rt <- stanc( model_code="nested.stan", model_name="Nested")
+      sm <- stan_model(stanc_ret = rt, verbose=FALSE)
+      system.time(fit <- sampling(sm, data=eggdat))
+      
+      print(fit,pars=c("mu","sigmalev1","sigmalev2","sigmalev3","sigmaeps"))
+      
+```
+
+### References 
+
+    
+\clearpage
+\pagebreak 
+
+
+### Computing Environment
+
+
+
+```{r, echo=FALSE}
+#opts_knit$set(root.dir = wd)   ##THIS SETS YOUR WORKING DIRECTORY
+sessionInfo()
+print(wd)
+```
+```{r echo=FALSE}
+stopTime<-proc.time()
+```
+This took `r (stopTime-startTime)[1][[1]]` seconds to execute. 
+  
+

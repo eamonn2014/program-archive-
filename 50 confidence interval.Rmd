@@ -1,0 +1,131 @@
+---
+title: When the sample size is two, a 50% confidence interval is defined by the two values
+author: "Eamonn O'Brien"
+date: "6 July 2016"
+output:
+  html_document: default
+  pdf_document:
+    fig_caption: yes
+    fig_height: 3
+    fig_width: 8
+    number_sections: yes
+---
+ 
+
+```{r setup, include=FALSE}
+ 
+        rm(list=ls())
+        #set.seed(312)
+        startTime<-proc.time()
+        library(knitr)
+        options(width=120)
+        opts_chunk$set(comment = "", warning = FALSE, message = FALSE,
+                       echo = TRUE, tidy = FALSE, size="tiny",  cache=FALSE,
+                       progress=TRUE,
+                       cache.path = 'program_Cache/',
+                       fig.path='figure/')
+         
+        knitr::knit_hooks$set(inline = function(x) {
+          knitr:::format_sci(x, 'md')
+        })
+ 
+   
+ 
+```
+
+
+```{r prerequisites, echo=FALSE}
+        
+        where<-"home"
+        
+        path  <- ""
+        path2 <- path
+     
+        work<-    paste("X:/", path, sep = "")
+        nonwork<- paste("~/X/", path, sep = "")
+       
+        if (where=="home") {wd<- nonwork} else {wd<-work}
+       
+        
+        work2<-    paste("X:/", path2, sep = "")
+        nonwork2<- paste("~/X/", path2, sep = "")
+       
+        if (where=="home") {wd2<- nonwork2} else {wd2<-work2}
+       
+        
+        work3<-    paste("X:/FUNCTIONS/R", sep = "")
+        nonwork3<- paste("~/X/FUNCTIONS/R", sep = "")
+       
+        if (where=="home") {wd3<- nonwork3} else {wd3<-work3}
+       
+        setwd(wd)
+        opts_knit$set(root.dir = wd)      
+        
+        
+        # sapply(X = list.of.packages, require, character.only = TRUE)
+        p3 <- function(x) {formatC(x, format="f", digits=3)}
+        p4 <- function(x) {formatC(x, format="f", digits=4)}
+        p2 <- function(x) {formatC(x, format="f", digits=2)}
+        p1 <- function(x) {formatC(x, format="f", digits=1)}
+        p1x <- function(x) {print(formatC(x, format="f", digits=1),quote=FALSE)}
+        p2x <- function(x) {print(formatC(x, format="f", digits=2),quote=FALSE)}
+        p3x <- function(x) {print(formatC(x, format="f", digits=3),quote=FALSE)}
+        p4x <- function(x) {print(formatC(x, format="f", digits=4),quote=FALSE)}
+        #perhaps help colour plot text based on loop count
+        is.even <- function(x){ x %% 2 == 0 }
+       
+        
+        
+```
+ 
+### Sample two realisations from a normally distributed population
+
+```{r , echo=TRUE, tidy=FALSE, comment="", cache=FALSE}
+
+    alpha <- 0.5             # 50% confidence
+
+    n <- 2                   # sample size
+    mu <- 0                  # population mean
+    sigma <- 1               # population standard deviation
+    
+    x <- rnorm(n, mu, sigma) # generate the sample
+    
+    sort(x)
+    
+        
+```
+
+###  Calculate the confidence interval
+
+```{r , echo=TRUE, tidy=FALSE, comment="", cache=FALSE}    
+    
+    error <- qt(1-alpha/2, df=n-1)*sd(x)/sqrt(n)
+    mean(x) + c(-1, +1) * error
+    
+```
+
+###  Calculate again using one sample t-test function
+
+```{r parameters, echo=TRUE, tidy=FALSE, comment="", cache=FALSE}        
+
+    t.test(x, conf.level = alpha)
+   
+
+```
+ 
+\newpage
+\pagebreak
+
+### Computing Environment
+ 
+ 
+```{r, echo=FALSE}
+ 
+opts_knit$set(root.dir = wd)   ##THIS SETS YOUR WORKING DIRECTORY
+sessionInfo()
+print(wd)
+```
+```{r echo=FALSE}
+stopTime<-proc.time()
+```
+This took `r (stopTime-startTime)[1][[1]]` seconds to execute.

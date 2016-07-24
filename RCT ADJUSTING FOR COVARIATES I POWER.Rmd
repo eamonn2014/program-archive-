@@ -1,0 +1,902 @@
+---
+title: Exploration of power and treatment effect precision using an adjusted analysis
+  for a randomised controlled trial (Bayesian & frequentist)
+author: "Eamonn O'Brien"
+date: '`r format(Sys.time(), "%d %B, %Y")`'
+output:
+  pdf_document:
+    fig_caption: yes
+    fig_height: 6
+    fig_width: 8
+    number_sections: yes
+  html_document: default
+---
+
+### Introduction
+
+Many randomised controlled trials (RCTs) are analysed in a simple manner using only the randomised treatment as the independent variable. But when the response outcome is continuous, precision of the treatment effect estimate is improved when adjusting for baseline covariates in a randomised controlled trial. We do not expect covariates to be related to the treatment assignment because of randomisation, but they may be related to the outcome, they are therefore not considered to be confounding. However, differences between the outcome which can be attributed to differences in the covariates can be removed, this results in a more precise estimate of treatment effect. This should be considered more often as sample sizes can be reduced. This is not the case for logistic models (principle of the non collapsibility of the odds ratio).
+
+Here, we perform an investigation of adjusted and unadjusted power in the setting of a RCT. We then choose a sample size and simulate a single RCT. The RCT is then analysed using a frequentist approach and a Bayesian approach.
+
+
+```{r set-options, echo=FALSE, cache=FALSE, warning = FALSE}
+
+        rm(list=ls())
+        set.seed(874)
+        startTime<-proc.time()
+        library(knitr)
+        options(width=120)
+        opts_chunk$set(comment = "", warning = FALSE, message = FALSE,
+                       echo = TRUE, tidy = FALSE, size="tiny",  cache=FALSE,
+                       progress=TRUE,
+                       cache.path = 'program_Cache/',
+                       fig.path='figure/')
+         
+        knitr::knit_hooks$set(inline = function(x) {
+          knitr:::format_sci(x, 'md')
+        })
+```
+
+```{r prerequisites, echo=FALSE}
+ 
+        where<-"home" #this is used in the sourced program 
+ 
+        path <- "Documents\\GIT\\Adjusting-for-covariates-I"  
+     
+        work<-    paste("X:/", path, sep = "")
+        nonwork<- paste("~/X/", path, sep = "")
+        if (where=="home") {wd<- nonwork} else {wd<-work}
+        
+        path2 <- "CUSTOMER\\SYROS\\CLIA VAIDATION RARalpha\\VACUFUGE\\DATA"  
+        work2<-    paste("X:/", path2, sep = "")
+        nonwork2<- paste("~/X/", path2, sep = "")
+        
+        if (where=="home") {wd2<- nonwork2} else {wd2<-work2}
+        
+        work3<-    paste("X:/FUNCTIONS/R", sep = "")
+        nonwork3<- paste("~/X/FUNCTIONS/R", sep = "")
+        
+        if (where=="home") {wd3<- nonwork3} else {wd3<-work3}
+        setwd(wd)
+        opts_knit$set(root.dir = wd)      ##THIS SETS YOUR WORKING DIRECTORY
+        
+ 
+```
+ 
+ 
+```{r preliminaries perhaps , echo=FALSE, results='hide'}
+
+
+        list.of.packages <- c("rms","ggplot2", "reshape", "rethinking")
+        
+        new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+        if(length(new.packages)) install.packages(new.packages)
+        
+        sapply(X = list.of.packages, require, character.only = TRUE)
+
+
+        p3 <- function(x) {formatC(x, format="f", digits=3)}
+        p4 <- function(x) {formatC(x, format="f", digits=4)}
+        p2 <- function(x) {formatC(x, format="f", digits=2)}
+         p1 <- function(x) {formatC(x, format="f", digits=0)}
+        # p1 <- function(x) {print(formatC(x, format="f", digits=1),quote=FALSE)}
+        # p2 <- function(x) {print(formatC(x, format="f", digits=2),quote=FALSE)}
+        # p3 <- function(x) {print(formatC(x, format="f", digits=3),quote=FALSE)}
+        # p4 <- function(x) {print(formatC(x, format="f", digits=4),quote=FALSE)}
+        #perhaps help colour plot text based on loop count
+        is.even <- function(x){ x %% 2 == 0 }
+  
+```            
+
+### Prepare for stochastic simulations
+
+```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='asis' , cache=TRUE }  
+
+    alpha <- 0.05
+    n.sims <- 200                                     # simulations
+    N <- seq(from=100, to=1000, by=50)                # trial sizes to explore
+    pow.adj1 <- pow.adj2 <- pow <- rep(NA, length(N)) # object to capture summary power estimates
+    bias <-  array(NA, dim=c(length(N),6))            # object to capture summary coeff estimates
+
+```
+
+### Function to investigate power for a RCT contingent on the analyses perfomed (adjusted and unadjusted)
+
+```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='markup', cache=TRUE }   
+
+    
+      
+  
+
+for (j in 1:length(N)){
+  
+  n <- N[j]
+  
+  #objects to collect simulations for each sample size before summary stats are calculated
+  significant.unadjusted <- significant.adj1 <- significant.adj2 <- rep(NA, n.sims)
+  est <- array(NA, dim=c(n.sims,6))
+  
+  for (i in 1: n.sims){
+    
+       # Hyp the effect of age on outcome, a unit change in outcome over the whole age range, 
+       # so ~0.02 effect on outcome for each increase in age of 1 year
+       effect.of.age <- 1/(65-18)       
+       effect.of.sex <- 5                # Hyp the effect of sex on outcome
+       effect.of.treatment <- 1          # Hyp the treatment effect on outcome
+       
+       # Hypothesize baseline version of response on outcome, 
+       # a unit increase results in 0.5 increase in outcome, 
+       # strong predictor so 5 over the baseline range
+       effect.of.baseline <- 1/2          
+       intercept <- 100
+       noise <- 5                        # random error
+       
+       #collect the true parmaeters to see how well we recover them
+       covp <- c(intercept,  effect.of.baseline,  effect.of.sex, 
+                 effect.of.age, effect.of.treatment, effect.of.treatment)
+    
+    # covariate effects
+    baseline <- runif(n,100,110)                    # baseline effect
+    treat <- 1*(runif(n)<0.5)                       # randomised treatment effect
+    sex <- c(rep("F", n/2), rep("M", n/2))          # Generate sex covariate
+    age <- sample(x=18:65, size=n, replace=TRUE)    # Generate age covariate
+    
+    # create the outcome, with random error
+    Y <- effect.of.sex*(sex=="M") + effect.of.age*age + effect.of.baseline*baseline + 
+      effect.of.treatment*treat + rnorm(n, intercept, noise)
+    
+    # prepare for analysis
+    d <- data.frame(Y=Y, baseline=baseline, treat=treat, sex=sex, age=age)
+    dd <- datadist(d, data=d); options(datadist="dd")
+    
+    # Unadjusted analysis, extract p-value treatment effect  
+    f0 <- ols(Y ~ treat, d)
+    fa <- anova(f0)
+    p.value <- as.matrix(fa)[1,5]
+    
+    # Adjusted analysis, extract p-value treatment effect  adjusted for 1 covariates
+    fa <- anova( ols(Y ~ baseline + treat, d))
+    p.value.adj1 <- as.matrix(fa)[2,5]
+    
+    # Adjusted analysis, extract p-value treatment effect adjusted for 3 covariates 
+    f <- ols(Y ~ baseline + sex + age + treat, d)
+    fa <- anova(f)
+    p.value.adj2 <- as.matrix(fa)[4,5]
+    
+    # collect p values
+    significant.unadjusted[i]  <-  p.value <= alpha
+    significant.adj1[i]   <-  p.value.adj1 <= alpha
+    significant.adj2[i]   <-  p.value.adj2 <= alpha
+    
+    #get the simulations coefficient estimates for sample size
+    est[i,]<- c(f$coefficients , f0$coefficients[2][[1]]) 
+    
+  }
+  
+  # summarise the simulations, calculate power
+  pow[j]      <- mean(significant.unadjusted)
+  pow.adj1[j] <- mean(significant.adj1)
+  pow.adj2[j] <- mean(significant.adj2)
+  
+  # mean the simulations  for the parameter estimates
+  x <- apply(est, 2, mean)        
+  
+  # calculate relative bias and store
+  bias[j,] <- 100*(x-covp)/covp 
+  
+}
+
+```            
+\newpage 
+
+### Plot the power with sample size relationships
+
+```{r echo=TRUE, fig.cap="Profiles of power with sample size"} 
+
+
+    df <-  data.frame(N, pow, pow.adj1, pow.adj2)
+    df2 <- melt(data = df, id.vars = "N")  # melt the data to a long format and plot   
+
+    g <- ggplot(data = df2, aes(x = N, y = value, color= factor(variable,  
+    labels = c("Unadjusted", "Adjusted + baseline covariate" , "Adjusted + 3 covariates")))) +
+    geom_line()
+    g <- g + ylab("Power") + xlab("Sample size") + labs(color = "Analysis") +
+        ggtitle("Power with analysis approach") 
+  
+    print(g)
+
+```            
+\newpage 
+
+### Plot the percent relative bias with sample size relationships
+
+```{r echo=TRUE, fig.cap="Profiles of percentage relative bias with sample size"} 
+
+
+    namez <-  c("intercept","effect.of.baseline","effect.of.sex","effect.of.age",
+                "effect.of.treatment", "unadj.effect.of.treatment")
+    bias <- data.frame(bias)
+    names(bias) <- namez
+
+    df <-  data.frame(cbind(N=N, bias))
+    df2 <- melt(data = df, id.vars = "N")    # melt the data to a long format and plot
+    
+    g <- ggplot(data = df2, aes(x = N, y = value, color= factor(variable, labels = namez))) +
+    geom_line()
+    g <- g + ylab("% Relative bias") + xlab("Sample size") + labs(color = "Parameter") +
+      ggtitle("% Relative Bias in coefficients") + 
+      geom_hline(aes(yintercept=0) , color="black", linetype="dashed")
+    g <- g + facet_grid(. ~ variable) + guides(colour=FALSE)
+
+    print(g)
+    
+
+```            
+
+### Show the % relative bias with sample size relationships
+
+```{r echo=TRUE, fig.cap="Profiles of percent relative bias with sample size"}
+    
+    x.c <- bias  # format all numerical variables
+    x.c[] <- lapply(x.c, function(.col){ 
+           if (is.numeric(.col)) return(sprintf("%.1f", .col)) 
+           else return(.col) 
+       }) 
+
+    print(x.c)
+    
+```
+
+### Based on power estimates of adjusted analyses a trial of 800 patients takes place
+
+```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='markup' }   
+    
+       set.seed(87564)  
+       n <- 800                          # sample size
+   
+       effect.of.age <- 1/(65-18)        # Hypothesize the effect of age on outcome
+       effect.of.sex <- 5                # Hypothesize the effect of sex on outcome
+       effect.of.treatment <- 1          # Hypothesize the treatment effect on outcome
+       effect.of.baseline <- 1/2         # Hypothesize the baseline effect on outcome
+       intercept <- 100
+       noise <- 5                        # the standard deviation for the simulated data
+
+       baseline <- runif(n,100,110)                    # Generate baseline covariate  
+       treat <- 1*(runif(n)<0.5)                       # randomised treatment effect
+       sex <- c(rep("F", n/2), rep("M", n/2))          # Generate sex covariate
+       age <- sample(x=18:65, size=n, replace=TRUE)    # Generate age covariate
+  
+       # Create the response outcome, with random error
+       Y <- effect.of.sex*(sex=="M") + effect.of.age*age + effect.of.baseline*baseline + 
+       effect.of.treatment*treat + rnorm(n, intercept, noise)
+     
+       #~~~~~~~~~~~~
+       # alternative data creation       
+       dat <- data.frame( baseline=baseline, treat=treat, sex=sex, age=age)
+
+       X <- model.matrix(~baseline + treat + sex + age, dat)
+
+       #the regression slopes
+       betas <-c(intercept, effect.of.baseline, effect.of.treatment, effect.of.sex, effect.of.age)
+   
+       # the simulated data
+       y_norm <- rnorm(800, X%*%betas, noise)
+       #~~~~~~~~~~~~
+       
+       lm( Y ~      baseline + sex + age + treat)
+       lm( y_norm ~ baseline + sex + age + treat)
+       
+       #~~~~~~~~~~~~
+       
+       
+       
+       
+       
+       
+       
+       
+       
+```
+
+### Create a data frame
+
+```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='markup' }         
+    
+       d <- data.frame(Y=Y, baseline=baseline, treat=treat,  sex=sex, age= age  )
+       dd <- datadist(d, data=d) ; options(datadist="dd")
+      
+```
+
+### Bayesian analysis using STAN, the model statement
+
+```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='hide'}     
+         
+          d$sex2 <- as.numeric(ifelse(d$sex=="M", 1,0)  )  
+    
+    
+           m0 <- map( alist( Y ~ dnorm(mu, sigma), 
+                          
+                            mu <- b0 + b4*treat, 
+                          
+                            b0 ~ dnorm(0, 100), 
+                            b4 ~ dnorm(0, 10), 
+                            sigma ~ dunif(0, 10) ), 
+                     data=d )
+ 
+          m1 <- map( alist( Y ~ dnorm(mu, sigma), 
+                         
+                           mu <- b0 + b1*baseline + b2*sex2 + b3*age +
+                           b4*treat, 
+                         
+                           b0 ~ dnorm(0, 100), 
+                           c(b1, b2, b3, b4) ~ dnorm(0, 10), 
+                           sigma ~ dunif(0, 10) ), 
+                    data=d )
+        
+          # construct centered predictors
+          # d$baseline <- d$baseline - mean(d$baseline)
+          # d$age <- d$age - mean(d$age)
+    
+               m1 <- map2stan( alist( Y ~ dnorm(mu, sigma), 
+                         
+                           mu <- b0 + b1*baseline + b2*sex2 + b3*age +
+                           b4*treat, 
+                         
+                           b0 ~ dnorm(0, 100), 
+                           c(b1, b2, b3, b4) ~ dnorm(0, 10), 
+                           sigma ~ dunif(0, 10) ), 
+                    data=d , chains=3, iter=5000 , warmup=1000 )
+        
+
+```
+
+### Bayesian analysis using STAN, frequentist and Bayesian results together
+
+```{r echo=FALSE, eval=TRUE, tidy=FALSE, results='markup' }           
+          
+       precis(m0, prob=.95) # quadratic approximation
+       precis(m1, prob=.95) # hamilton mcmc
+      
+```
+
+
+### Model assumption check
+
+```{r echo=TRUE, fig.cap="Check chains are mixing" }  
+
+    pairs(m1)
+    post <- extract.samples(m1)
+   # lapply(post, densityplot)
+#     par(mfrow=c(3,3))
+#     for ( i in 1:6 )  { plot(post[i] , type='l', main=names(post)[i]) }
+#     par(mfrow=c(1,1))
+    
+    plot(m1)
+    
+```
+### Plot the predicted effects, counterfactual samples of 100 patients are also simulated and plotted.   
+### Treatment effect
+
+
+```{r echo=TRUE, results='hide', fig.cap="Effects of treatment on outcome, simulated response outcomes left panel, mean response right panel", fig.show='asis'}   
+    
+        nn <- 100 # just plot this number of patient rather than 800
+        post0 <- extract.samples(m0)
+
+        namez <- "Treatment"
+        x <- c(rep(0,nn/2) , rep(1, nn/2))
+        
+        pred.data1 <- data.frame(                            # Make predictions for this dataset
+             treat= x                                 
+        )
+              
+        # compute counterfactual mean response (mu1)
+        mu1 <- link( m0 , data=pred.data1 )   
+        mu.mean <- apply( mu1 , 2 , mean )
+        mu.PI <- apply( mu1 , 2 , PI )
+              
+        # simulate counterfactual response outcomes
+        R.sim1 <- sim( m0 , data=pred.data1 , n=1e4 ) # n < posterior samples or error?
+        R.PI <- apply( R.sim1 , 2 , PI )
+              
+        # Need Y to be the same length as x, these values are not plotted
+        Y <- seq(from=min( R.sim1, na.rm=T), max(R.sim1, na.rm=T), length.out=nn )    
+        
+        par(mfrow=c(1,2))
+  
+        # mean and response outcome plot 
+        plot( Y ~ x  , type="n", xlab=paste(namez), ylab="Response", xlim=c(-0.2,1.2 ), 
+        ylim=c(min( R.sim1,na.rm=T)*1, max( R.sim1, na.rm=T)*1), xaxt = "n")          # get appropriate y range
+        axis(side = 1,   at = c(0,1), labels = c(0,1),     tck=-.05) # better ticks on x axis
+        # plot this info
+        lines( x , mu.mean )                                         # plot this info
+        shade( mu.PI , x , col= col.alpha("blue",   0.15))
+        shade( R.PI ,  x , col= col.alpha("purple", 0.15))
+        points(R.sim1[1,] ~ jitter(x))   # pick one of the many simulations to plot
+           
+        # mean effect         
+        plot(Y ~ x, type="n", xlab=paste(namez), ylab="Response" , ylim=c(155,158), xaxt = "n")
+        axis(side = 1, at = c(0,1), labels = c(0,1),  tck=-.05) # better axes
+        lines( x , mu.mean )
+        shade( mu.PI , x , col= col.alpha("blue", 0.15))
+        grid(nx = NULL, ny = NULL)
+                  
+        # title
+        mtext(line=-3, text= "Unadjusted treatment effect estimate", outer=T, cex=.7) 
+                 
+        # title
+        foo<-post0$b4                    # collect the appropriate mcmc samples 
+        mtext( line= -2, 
+        text=paste(namez ," mean effect ", p2(mean(foo)),", SD=", p3(sd(foo)) ,", 95% CI (",
+        p2(quantile(foo, c(.025))), ", ", p2(quantile(foo, c(0.975))),"), p>0 = ", 
+        mean(foo>0), sep="") ,outer = TRUE, cex = 1) 
+
+
+```        
+
+### Adjusted analysis
+   
+        
+```{r echo=TRUE, results='hide', fig.cap="Effects of treatment on outcome, simulated response outcomes left panel, mean response right panel", fig.show='asis'}   
+    
+        nn<-100 #* just plot this number of patient rather than 800
+        
+        par(mfrow=c(1,1))
+        P.baseline <- median(d$baseline)                     # Hold baseline
+        P.treat <- c(rep(0,nn/2) , rep(1, nn/2))             # vary 
+        P.age <- median(d$age)                               # Hold age at median 
+        P.sex <- 0                                           # Hold sex at female 0
+        
+        namez <- "Treatment"
+        x <- P.treat    # define the variable here, so less typing later perhaps
+              
+        pred.data1 <- data.frame(                            # Make predictions for this dataset
+          baseline=P.baseline,
+          sex2=P.sex,
+          age=P.age,
+          treat=x                                     
+        )
+              
+        # compute counterfactual mean response (mu1)
+        mu1 <- link( m1 , data=pred.data1 )   
+        mu.mean <- apply( mu1 , 2 , mean )
+        mu.PI <- apply( mu1 , 2 , PI )
+              
+        # simulate counterfactual response outcomes
+        R.sim1 <- sim( m1 , data=pred.data1 , n=1e4 )
+        R.PI <- apply( R.sim1 , 2 , PI )
+              
+        # Need Y to be the same length as x, these values are not plotted
+        Y <- seq(from=min( R.sim1, na.rm=T), max(R.sim1, na.rm=T), length.out=nn )    
+        
+        par(mfrow=c(1,2))
+  
+        # mean and response outcome plot 
+        plot( Y ~ x  , type="n", xlab=paste(namez), ylab="Response" , xlim=c(-0.2,1.2 ), 
+        ylim=c(min( R.sim1, na.rm=T)*1, max( R.sim1, na.rm=T)*1), xaxt = "n")          # get appropriate y range
+        axis(side = 1,   at = c(0,1), labels = c(0,1),     tck=-.05) # better ticks on x axis
+        # plot this info
+        lines( x , mu.mean )                                         # plot this info
+        shade( mu.PI , x , col= col.alpha("blue",   0.15))
+        shade( R.PI ,  x , col= col.alpha("purple", 0.15))
+        points(R.sim1[1,] ~ jitter(x))   # pick one of the many simulations to plot
+           
+        # mean effect         
+        plot(Y ~ x, type="n", xlab=paste(namez), ylab="Response" , ylim=c(152,156), xaxt = "n")
+        axis(side = 1, at = c(0,1), labels = c(0,1),  tck=-.05) # better axes
+        lines( x , mu.mean )
+        shade( mu.PI , x , col= col.alpha("blue", 0.15))
+        grid(nx = NULL, ny = NULL)
+                  
+        # title
+        mtext( line=-3, text=paste(namez ,"effect adjusted to age", 
+        P.age ,"; baseline", p2(P.baseline),"; sex coded", P.sex, sep=" "),  outer=T, cex=.7) 
+                 
+        # title
+        foo<-post$b4                    # collect the appropriate mcmc samples 
+      
+        mtext( line= -2, 
+        text=paste(namez ," mean effect ", p2(mean(foo , na.rm=T)),", SD=", p3(sd(foo,na.rm=T)) ,", 95% CI (",
+        p2(quantile(foo, c(.025), na.rm=T)), ", ", p2(quantile(foo, c(0.975), na.rm=T)),"), p>0 = ", 
+        mean(foo>0), sep="") 
+        ,outer = TRUE, cex = 1) 
+
+        
+        
+
+```
+
+### For completion the effects of the other covariates on outcome; age
+
+```{r echo=FALSE, results='hide',   fig.cap="Effects of age on outcome, simulated response outcomes left panel, mean response right panel", fig.show='asis'}    
+
+          
+          P.baseline <- median(d$baseline)  
+          P.sex <- 0                                           # Hold sex at FEMALE
+          P.age <- seq( from=18, to=65, length.out=nn )         #* vary age 
+          P.treat=0                                            # Hold
+          
+          namez <- "Age in years"
+          x <- P.age                       # define the variable here, so less typing later
+          
+          pred.data1 <- data.frame(                          # Make predictions for this dataset
+            baseline=P.baseline,
+            sex2=P.sex,
+            age=x,
+            treat=P.treat                                     
+          )
+          
+          # compute counterfactual mean response (mu1)
+          mu1 <- link( m1 , data=pred.data1 )   
+          mu.mean <- apply( mu1 , 2 , mean )
+          mu.PI <- apply( mu1 , 2 , PI )
+          
+          # simulate counterfactual response outcomes
+          R.sim1 <- sim( m1 , data=pred.data1 , n=1e4 )
+          R.PI <- apply( R.sim1 , 2 , PI )
+          
+          # display predictions, hiding raw data with type="n"  
+          #plot( Y ~ x , data=d , type="n", xlab=paste(namez), ylab="Response" )
+          
+      par(mfrow=c(1,2))
+              Y <- seq(from=min( R.sim1, na.rm=T), max(R.sim1, na.rm=T), length.out=nn )    #*
+      plot( Y ~ x  , type="n", xlab=paste(namez), ylab="Response" )#*
+          
+          
+           foo<-post$b3
+ 
+          lines( x , mu.mean )
+          shade( mu.PI , x , col= col.alpha("blue", 0.15))
+          shade( R.PI ,  x , col= col.alpha("purple", 0.15))
+          points(R.sim1[1,] ~ x)
+ 
+          
+      #same as frank harrell's rms plot
+      plot( Y ~ x  , type="n", xlab=paste(namez), ylab="Response" , ylim=c(151,155))#*
+      lines( x , mu.mean )
+      shade( mu.PI , x , col= col.alpha("blue", 0.15))
+      grid(nx = NULL, ny = NULL)
+          
+          
+          
+       mtext( line=-3, text=paste(namez ,"effect adjusted to treatment",P.treat,"; baseline", p2(P.baseline),"; sex coded", P.sex, sep=" "),  outer=T, cex=.7) 
+         
+       mtext( line=-2, text=paste(namez ," mean effect ", p2(mean(foo, na.rm=T)),", 95% CI (",p2(quantile(foo, c(.025), na.rm=T)), ", ", p2(quantile(foo, c(0.975), na.rm=T)),"), p>0 = ", mean(foo>0), sep="") ,outer = TRUE, cex = 1      ) 
+
+          
+
+      
+```
+
+### Baseline effect on outcome
+
+```{r echo=FALSE, results='hide',   fig.cap="Effects of baseline on outcome, simulated response outcomes left panel, mean response right panel", fig.show='asis'}    
+   
+      P.baseline <- seq( from=100, to=110, length.out=nn )     #* changed from n
+      P.sex <- 0                                           # Hold sex at FEMALE
+      P.age <- median(d$age)                               # Hold age at median 
+      P.treat=0                                            # Hold
+      
+      namez <- "Baseline"
+      x <- P.baseline                       # define the variable here, so less typing later
+      
+      pred.data1 <- data.frame(                          # Make predictions for this dataset
+        baseline=x,
+        sex2=P.sex,
+        age=P.age,
+        treat=P.treat                                     
+      )
+      
+      # compute counterfactual mean response (mu1)
+      mu1 <- link( m1 , data=pred.data1 )   
+      mu.mean <- apply( mu1 , 2 , mean )
+      mu.PI <- apply( mu1 , 2 , PI )
+      
+      # simulate counterfactual response outcomes
+      R.sim1 <- sim( m1 , data=pred.data1 , n=1e4 )
+      R.PI <- apply( R.sim1 , 2 , PI )
+      
+      par(mfrow=c(1,2))
+      Y <- seq(from=min( R.sim1, na.rm=T), max(R.sim1, na.rm=T), length.out=nn )    #*
+      plot( Y ~ x  , type="n", xlab=paste(namez), ylab="Response" )#*
+      lines( x , mu.mean )
+      shade( mu.PI , x , col= col.alpha("blue", 0.15))
+      shade( R.PI ,  x , col= col.alpha("purple", 0.15))
+      points(R.sim1[1,] ~ x)
+      
+      foo<-post$b1    
+
+      #same as frank harrell's rms plot
+      plot( Y ~ x  , type="n", xlab=paste(namez), ylab="Response" , ylim=c(149,157))#*
+      lines( x , mu.mean )
+      shade( mu.PI , x , col= col.alpha("blue", 0.15))
+      grid(nx = NULL, ny = NULL)
+      
+      foo<-post$b1     
+      
+      mtext( line=-3, text=paste(namez ,"effect adjusted to treatment",P.treat,"; age", P.age,"; sex coded", P.sex, sep=" "),  outer=T, cex=.7) 
+         
+      mtext( line=-2, text=paste(namez ," mean effect ", p2(mean(foo,na.rm=T)),", 95% CI (",p2(quantile(foo, c(.025),na.rm=T)), ", ", p2(quantile(foo, c(0.975),na.rm=T)),"), p>0 = ", mean(foo>0), sep="") ,outer = TRUE, cex = 1      ) 
+#        
+       
+
+```
+
+### Effect on outcome; sex. There is no real need to show treatment as well, as no interaction was modelled.
+
+```{r echo=FALSE, results='hide',   fig.cap="Effects of sex on outcome, simulated response outcomes top panels, mean response bottom", fig.show='asis'} 
+     
+      
+      par(mfrow=c(1,2) ,oma = c(0, 0, 2, 0))
+      P.baseline <- median(d$baseline)  
+      P.sex <- c(rep(0,nn/2) , rep(1, nn/2))                 #* assess sex at FEMALE
+      P.age <- median(d$age)                               # Hold age at median 
+      P.treat=0                                            # Hold
+      
+      namez <- "Sex"
+      x <- P.sex    #define the variable here, so less typing later
+      
+      pred.data1 <- data.frame(                          # Make predictions for this dataset
+        baseline=P.baseline,
+        sex2=x,
+        age=P.age,
+        treat=P.treat                                     
+      )
+      
+      # compute counterfactual mean response (mu1)
+      mu1 <- link( m1 , data=pred.data1 )   
+      mu.mean <- apply( mu1 , 2 , mean )
+      mu.PI <- apply( mu1 , 2 , PI )
+      
+      # simulate counterfactual response outcomes
+      R.sim1 <- sim( m1 , data=pred.data1 , n=1e4 )
+      R.PI <- apply( R.sim1 , 2 , PI )
+       
+      
+         Y <- seq(from=min( R.sim1, na.rm=T), max(R.sim1, na.rm=T), length.out=nn )    #*
+      plot( Y ~ x  , type="n", xlab=paste(namez), ylab="Response" , xlim=c(-0.2,1.2 ), #*
+            ylim=c(min( R.sim1)*1, max( R.sim1, na.rm=T) ), xaxt = "n")#*
+           axis(side = 1,   at = c(0,1), labels = c(0,1),     tck=-.05)  #* #*
+    
+      mtext( "treatment 0" )
+      lines( x , mu.mean )
+      shade( mu.PI , x , col= col.alpha("blue", 0.15))
+      shade( R.PI ,  x , col= col.alpha("purple", 0.15))
+      points(R.sim1[1,] ~ jitter(x))
+      
+      #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+      P.baseline <- median(d$baseline)  
+      P.sex <- c(rep(0,nn/2) , rep(1, nn/2))                 # Hold sex at FEMALE
+      P.age <- median(d$age)                               # Hold age at median 
+      P.treat=1                                            # Hold
+      
+      namez <- "Sex"
+      x <- P.sex    #define the variable here, so less typing later
+      
+      pred.data1 <- data.frame(                          # Make predictions for this dataset
+        baseline=P.baseline,
+        sex2=x,
+        age=P.age,
+        treat=P.treat                                     
+      )
+      
+      # compute counterfactual mean response (mu1)
+      mu1 <- link( m1 , data=pred.data1 )   
+      mu.mean <- apply( mu1 , 2 , mean )
+      mu.PI <- apply( mu1 , 2 , PI )
+      
+      # simulate counterfactual response outcomes
+      R.sim1 <- sim( m1 , data=pred.data1 , n=1e4 )
+      R.PI <- apply( R.sim1 , 2 , PI )
+  
+      Y <- seq(from=min( R.sim1, na.rm=T), max(R.sim1, na.rm=T), length.out=nn )    #*
+      plot( Y ~ x  , type="n", xlab=paste(namez), ylab="Response" , xlim=c(-0.2,1.2 ), #*
+            ylim=c(min( R.sim1, na.rm=T)*1, max( R.sim1, na.rm=T) ) , xaxt = "n")#*
+           axis(side = 1,   at = c(0,1), labels = c(0,1),     tck=-.05)  #*
+      
+      
+      
+      mtext( "treatment 1" )
+ 
+      lines( x , mu.mean )
+      shade( mu.PI , x , col= col.alpha("blue", 0.15))
+      shade( R.PI ,  x , col= col.alpha("purple", 0.15))
+      points(R.sim1[1,] ~ jitter(x))
+      
+      
+      foo <- (post$b2)
+      
+       mtext(side=1, line=-1, text=paste(namez ,"effect adjusted to age", P.age,"; sex coded", P.sex,"; baseline", p4(P.baseline), sep=" "), adj=0, outer=T, cex=.7) 
+     
+       mtext( line=-2, text=paste(namez ," mean effect ", p2(mean(foo,na.rm=T)),", 95% CI (",p2(quantile(foo, c(.025),na.rm=T)), ", ", p2(quantile(foo, c(0.975),na.rm=T)),"), p>0 = ", mean(foo>0), sep="") ,outer = TRUE, cex = 1      ) 
+ 
+         
+      par(mfrow=c(1,1))      
+      
+      #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+           plot( Y ~ (x)  , type="n", xlab=paste(namez), ylab="Response", ylim=c(153,162) 
+                 , xaxt = "n")#*
+           axis(side = 1,   at = c(0,1), labels = c(0,1),     tck=-.05)
+      lines( x , mu.mean )
+      shade( mu.PI , x , col= col.alpha("blue", 0.15))
+      grid(nx = NULL, ny = NULL)
+          
+          
+          
+          
+       mtext(side=1, line=-1, text=paste(namez ,"effect adjusted to age", P.age,"; sex coded", P.sex,"; baseline", p4(P.baseline), sep=" "), adj=0, outer=T, cex=.7) 
+     
+      
+       
+              mtext( line=-3, text=paste(namez ," mean effect ", p2(mean(foo)),", 95% CI (",p2(quantile(foo, c(.025))), ", ", p2(quantile(foo, c(0.975))),"), p>0 = ", mean(foo>0), sep="") ,outer = TRUE, cex = 1      ) 
+      
+
+```              
+
+### Frequentist analysis, print the regression table (also print Bayesian)
+
+```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='markup' }   
+      
+       precis(m1)        
+       f<- ols( Y ~ baseline + sex + age + treat  , d,  x=TRUE, y=TRUE)
+       print(f)
+      
+```
+
+### Compute analysis of variance table for the fitted model object with $\chi^2$ statistics.  
+
+```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='markup' } 
+ 
+       an <- anova(f, main.effect=FALSE, test=c('Chisq')) # try anova(f, test=c('F') ) # F tests
+       print(an, 'subscripts')
+
+```            
+\newpage 
+
+### Plot the partial effect of each variable.
+
+```{r echo=TRUE, fig.cap="The default for plot(anova()) is to display the Wald Chi2 statistic minus its degrees of freedom for assessing the partial effect of each variable. Even though this is not scaled [0,1] it is probably the best method in general because it penalizes a variable requiring a large number of parameters to achieve the Chi2. If a predictor interacts with any other predictor(s), the Chi2  and partial R2 measures combine the appropriate interaction effects with main effects. For example if the model was y ~ biomarker * treatment the statistic for treatment is the combined effects of treatment as a main effect plus the effect modification that treatment provides for the biomarker effect. This is an assessment of whether there is a difference between the treatment for any biomarker score."} 
+   
+     par(mfrow=c(3,1))
+     plot(an, 
+     what=c("proportion chisq"),  
+     xlab=NULL, pch=16, 
+     rm.totals=TRUE, rm.ia=FALSE, rm.other=NULL, 
+     sort=c("descending"), margin=NULL, pl=TRUE,
+     trans=NULL, ntrans=40 )
+ 
+      plot(an, 
+     what=c("chisqminusdf"))
+          
+       plot(an, 
+     what=c('proportion R2'))
+           par(mfrow=c(1,1))
+
+```      
+
+### Compute predicted values and confidence limits 
+
+```{r echo=TRUE, fig.cap="Show predicted values and confidence bands"}         
+      
+      plot(Predict(f),   anova=an, pval=TRUE) 
+
+```
+      
+### The key result, computed predicted values and confidence limits for the treatment effect on outcome. Notice the larger SE for the unadjusted analysis.
+
+```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='markup' }     
+ 
+      summary(f, treat=c(0,1), est.all=FALSE) 
+      ggplot(Predict(f,   treat), anova=an, pval=TRUE)   
+      
+      #univariate
+      f0 <- ols( Y ~ treat  , d,  x=TRUE, y=TRUE)
+      summary(f0, treat=c(0,1))
+      an0 <- anova(f0, main.effect=FALSE, test=c('Chisq')) 
+      ggplot(Predict(f0), anova=an0, pval=TRUE)   
+      
+      
+```            
+
+### Plot the other covariate effects for information. Sex main effect on outcome.
+
+```{r echo=TRUE, fig.cap="Sex main effect on outcome"}  
+      
+      summary(f, sex=c("M","F"), est.all=FALSE) 
+      ggplot(Predict(f,   sex), anova=an, pval=TRUE)   
+      
+```            
+
+### Show age main effect on outcome.
+
+```{r echo=TRUE, fig.cap="Age main effect on outcome"}        
+      
+      summary(f, age=c(18,65), est.all=FALSE) 
+      ggplot(Predict(f,  age), anova=an, pval=TRUE)     
+      
+```            
+
+### Show baseline main effect on outcome.  
+
+```{r echo=TRUE, fig.cap="Baseline main effect on outcome"}        
+      
+      summary(f, baseline=c(-1,1), est.all=FALSE) 
+      ggplot(Predict(f,  baseline), anova=an, pval=TRUE)      
+    
+      
+```
+
+### Reproduce the regression table using the summary function
+
+```{r echo=TRUE, fig.cap="Summary of effects"}     
+             
+       summary(f, baseline=c(0,1), sex=c("M","F") , age=c(0,1), treat=c(0,1)  )
+       
+```
+
+### The contrast function, match the regression table for treatment effect
+
+```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='markup' }        
+  
+ 
+      contrast(f,list(treat=1, age=0, baseline=0, sex=c("F")),
+                 list(treat=0, age=0, baseline=0, sex=c("F")))
+      
+```
+
+### The contrast function, treatment effect when covariates held at median, however this does not matter as there is no interaction in the model
+
+```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='markup' }        
+ 
+         contrast(f,list(treat=1,  
+                       age=median(age), baseline=median(baseline), sex="F"),
+                 list(treat=0, 
+                      age=median(age), baseline=median(baseline), sex="F"))
+      
+         contrast(f, list(treat=1),list(treat=0))
+        
+
+```
+
+### Assumption check
+
+```{r echo=TRUE, fig.cap="Check OLS assumptions" }        
+         
+          
+    r <- residuals(f)
+    plot(r); abline(h=0)
+    qqnorm(r) ; qqline(r)
+         
+   # resid(f, "dfbetas")
+   # which.influence(f)      
+         
+
+
+```
+
+### References 
+
+  Statistical Rethinking 1st Edition, Richard McElearth post treatment bias p151, WAIC p199 and simulate p129  
+  http://thestatsgeek.com/2014/02/01/adjusting-for-baseline-covariates-in-randomized-controlled-trials/  
+  http://egap.org/content/power-analysis-simulations-r  
+  http://stackoverflow.com/questions/14554558/simulate-a-linear-model-100-times  
+  http://stats.stackexchange.com/questions/155246/which-variable-relative-importance-method-to-use  
+    
+\clearpage
+\pagebreak 
+
+
+### Computing Environment
+
+```{r, echo=FALSE}
+#opts_knit$set(root.dir = wd)   ##THIS SETS YOUR WORKING DIRECTORY
+sessionInfo()
+print(wd)
+```
+```{r echo=FALSE}
+stopTime<-proc.time()
+```
+This took `r (stopTime-startTime)[1][[1]]` seconds to execute. 
+  
+

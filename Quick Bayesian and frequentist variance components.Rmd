@@ -1,0 +1,290 @@
+---
+title: "Nested Variance Components Analysis (Bayesian)"
+author: "Eamonn O'Brien"
+date: '`r format(Sys.time(), "%d %B, %Y")`'
+output:
+  html_document: default
+  pdf_document:
+    fig_caption: yes
+    fig_height: 6
+    fig_width: 8
+    number_sections: yes
+---
+
+### Introduction
+
+Return to this later
+
+
+```{r set-options, echo=TRUE, cache=FALSE, warning = FALSE}
+
+        rm(list=ls())
+        set.seed(874)
+        startTime<-proc.time()
+        library(knitr)
+        options(width=120)
+        opts_chunk$set(comment = "", warning = FALSE, message = FALSE,
+                       echo = TRUE, tidy = FALSE, size="tiny",  cache=FALSE,
+                       progress=TRUE,
+                       cache.path = 'program_Cache/',
+                       fig.path='figure/')
+         
+        knitr::knit_hooks$set(inline = function(x) {
+          knitr:::format_sci(x, 'md')
+        })
+```
+
+```{r prerequisites, echo=TRUE}
+ 
+        where<-"home" #this is used in the sourced program 
+ 
+        path <- ""  
+     
+        work<-    paste("X:/", path, sep = "")
+        nonwork<- paste("~/X/", path, sep = "")
+        if (where=="home") {wd<- nonwork} else {wd<-work}
+        
+        path2 <- ""
+        
+        work2<-    paste("X:/", path2, sep = "")
+        nonwork2<- paste("~/X/", path2, sep = "")
+        
+        if (where=="home") {wd2<- nonwork2} else {wd2<-work2}
+        
+        work3<-    paste("X:/FUNCTIONS/R", sep = "")
+        nonwork3<- paste("~/X/FUNCTIONS/R", sep = "")
+        
+        if (where=="home") {wd3<- nonwork3} else {wd3<-work3}
+        setwd(wd)
+        opts_knit$set(root.dir = wd)  ##THIS SETS YOUR WORKING DIRECTORY
+        
+ 
+```
+ 
+ 
+```{r preliminaries perhaps , echo=TRUE, results='hide'}
+
+
+        list.of.packages <- c("lme4","rethinking", "rstanarm")
+        
+        new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+        if(length(new.packages)) install.packages(new.packages)
+        
+        sapply(X = list.of.packages, require, character.only = TRUE)
+
+
+        p3 <- function(x) {formatC(x, format="f", digits=3)}
+        p4 <- function(x) {formatC(x, format="f", digits=4)}
+        p2 <- function(x) {formatC(x, format="f", digits=2)}
+         p1 <- function(x) {formatC(x, format="f", digits=0)}
+        # p1 <- function(x) {print(formatC(x, format="f", digits=1),quote=FALSE)}
+        # p2 <- function(x) {print(formatC(x, format="f", digits=2),quote=FALSE)}
+        # p3 <- function(x) {print(formatC(x, format="f", digits=3),quote=FALSE)}
+        # p4 <- function(x) {print(formatC(x, format="f", digits=4),quote=FALSE)}
+        #perhaps help colour plot text based on loop count
+        is.even <- function(x){ x %% 2 == 0 }
+  
+```            
+
+### Modelling
+
+```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='markup' , cache=TRUE }  
+ 
+   data(Glucose, package="VCA") # be specific, nlme also has a Glucose dataset, see 'data()'
+    head(Glucose)
+  
+    dd <- Glucose
+  
+    dd$run <- rep(1:(length(dd$run)/2),each=2)
+
+    # frequentist
+    f <- lme4::lmer(result ~ (1 | day/run), data = dd, 
+                  REML = TRUE, na.action = "na.omit")
+
+    # Bayesian rethinking
+    # bundle data and some indtructions  
+    require(rethinking)
+    
+    data_list <- list( 
+      y = dd$result, 
+      day = dd$day, 
+      run = rep(1:(length(dd$run)/2),each=2),
+      start=list(sigma=sd(dd$result), 
+                 sigma_day=sd(dd$result), 
+                 sigma_run=sd(dd$result), 
+                 a =mean(dd$result) ))
+    
+    
+   # mux <- mean(dd$result)
+    # model
+    f2 <- alist(
+      ( y ~ dnorm(mu,sigma)),
+    
+      mu <- a + bN[day] + bR[run] ,
+      
+      a ~ dnorm(244 ,10),
+      bN[day] ~ dnorm(0, sigma_day ),
+      bR[run] ~ dnorm(0, sigma_run ),
+      sigma_run ~ dcauchy(0,1), 
+      sigma_day ~ dcauchy(0,1), 
+      sigma ~ dcauchy(0,1)
+    )
+ 
+    # execute
+    rethink1 <- map2stan( f2 , 
+                   data=data_list , 
+                   iter=100000, warmup=2000, chains=8  )
+
+ 
+
+    # Bayesian Rstan 
+    require(rstanarm)
+    ITER <- 500L
+    CHAINS <- 2L
+    CORES <- 1L
+    SEED <- 12345
+
+    rstan1 <- stan_lmer(result ~ (1 | day/run), data = dd, 
+                        prior=cauchy(0,1), #default 2.5
+                        prior_intercept = normal( 0,NULL),# default 10
+                        prior_covariance = decov(shape =1, scale = 1),
+                        adapt_delta = 0.999, chains = CHAINS, cores = 1,
+                        seed = SEED)
+
+```            
+
+### Modelling
+
+```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='markup' , cache=TRUE }  
+    
+  print(f, digits=4)
+   precis(rethink1, depth = 1, prob = 0.95, digits = 3)
+   print(rstan1, digits=3)
+    
+    
+    
+    #     posterior_interval(test, pars = c("(Intercept)", "sigma" ))
+# 
+# 
+#     stan_trac(test)
+#     stan_hist(test)
+
+    #launch_shinystan(post2)
+
+#     y_rep <- posterior_predict(post2)
+#     dim(y_rep)
+
+      
+
+# mat = as.matrix(test)
+# 
+# # get the random effect columns
+# group_cols <- grep(" day:", colnames(mat), value = T)
+# group_posteriors <- mat[, group_cols]
+# sqrt(median(apply(group_posteriors,2, var)))
+# 
+# group_cols <- grep(":day:", colnames(mat), value = T)
+# group_posteriors <- mat[, group_cols]
+# sqrt(mean(apply(group_posteriors,1, var)))
+# 
+# group_cols <- grep("sigma", colnames(mat), value = T)
+# group_posteriors <- mat[, group_cols]
+# (median(group_posteriors))
+# 
+# 
+# 
+# 
+# 
+# ##########
+# # extract posterior samples
+# mat = as.matrix(test)
+# 
+# # get the random effect columns
+# group_cols <- grep(":day", colnames(mat), value = T) #run
+# group_posteriors <- mat[, group_cols]
+# 
+# # example variable slope term: b[var1_scaled donor:donor1]
+# variable_names <- unique(gsub("b\\[(.*)\\s.*", "\\1", colnames(group_posteriors)))
+# 
+# # for each variable, compute its SD at each MCMC iteration
+# var_group_summary <- sapply(variable_names, function(vname){
+#   var_group_posteriors <- group_posteriors[, grep(vname, colnames(group_posteriors), value = T)]
+#   group_sd <- sapply(1:nrow(var_group_posteriors), function(crow){
+#     out <- sd(var_group_posteriors[crow, ])
+#     return(out)
+#   })
+#   group_summary <- c(mean = mean(group_sd), quantile(x = group_sd, probs = c(0.5, 0.025, 0.975)))
+#   return(group_summary)
+# })
+# return(var_group_summary)
+# }
+# ##########
+
+
+
+
+
+
+
+# coef(test)
+
+# cv <- loo(post2)
+# 
+# par(mfrow = 1:2, mar = c(5,3.8,1,0) + 0.1, las = 3)
+# plot(cv, label_points = TRUE)
+
+
+
+
+  
+# set.seed(666)
+# Omega <- rbind(
+#   c(1, 0.3, 0.2),
+#   c(0.3, 1, 0.1),
+#   c(0.2, 0.1, 1)
+# )
+# sigma <- c(1, 2, 3)
+# Sigma <- diag(sigma) %*% Omega %*% diag(sigma)
+# N <- 100 
+# y <- mvtnorm::rmvnorm(N, c(0,0,0), Sigma)
+# 
+# apply(y, 2, mean)
+# apply(y, 2, sd)
+ 
+
+    
+
+```
+
+### References 
+
+https://groups.google.com/forum/#!topic/stan-users/F23kBsgqGcY
+https://github.com/stan-dev/stan/wiki/Prior-Choice-Recommendations
+http://stla.github.io/stlapblog/posts/StanLKJprior.html
+http://www.psychstatistics.com/2014/12/27/d-lkj-priors/
+stan reference manual
+https://cran.r-project.org/web/packages/rstanarm/vignettes/rstanarm.html # note-on-prior-beliefs-and-default-priors: The default priors in rstanarm are designed to be weakly informative, by which we mean that they avoid placing unwarranted prior weight on nonsensical parameter values and provide some regularization to avoid overfitting, but also do allow for extreme values if warranted by the data.
+http://rstudio-pubs-static.s3.amazonaws.com/170731_a498f35a82f74e009b6d8def040e422f.html#extracting-posterior-samples
+https://github.com/stan-dev/rstanarm/wiki/Prior-distributions  
+http://datascienceplus.com/bayesian-regression-with-stan-part-1-normal-regression/
+
+    
+\clearpage
+\pagebreak 
+
+
+### Computing Environment
+
+
+
+```{r, echo=FALSE}
+#opts_knit$set(root.dir = wd)   ##THIS SETS YOUR WORKING DIRECTORY
+sessionInfo()
+print(wd)
+```
+```{r echo=FALSE}
+stopTime<-proc.time()
+```
+This took `r (stopTime-startTime)[1][[1]]` seconds to execute. 
+  
+

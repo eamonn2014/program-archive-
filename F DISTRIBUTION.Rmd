@@ -1,0 +1,585 @@
+---
+title: "F Distribution: An investigation on the ratio of variances"
+author: "Eamonn O'Brien"
+date: '`r format(Sys.time(), "%d %B, %Y")`'
+output:
+  html_document: default
+  pdf_document:
+    fig_caption: yes
+    fig_height: 6
+    fig_width: 8
+    number_sections: yes
+  word_document: default
+---
+
+# Introduction
+
+Consider two sample variances that are calculated from random samples from different normal populations. 
+
+If we need to perfom a significance test to determine whether the underlying variances
+are in fact equal; that is, we want to test the hypothesis $H{_0}$: $\sigma_1^2$ = $\sigma_2^2$ versus  $H{_1:}$ $\sigma_1^2$ != $\sigma_2^2$ we will proceed basing the significance test on the relative magnitudes of the sample variances ($s_1^2$, $s_2^2$). It is prefereable to base the test on the ratio of the sample variances ($s_1^2$ $/$ $s_2^2$) rather than on the difference between the sample variances ($s_1^2$- $s_2^2$).
+
+The ratio of two such variances is called an F ratio and the F ratio has a standard distribution called an F distribution. The shape of this distribution depends on the sample sizes of the two groups more generally on the degrees of freedom of the two variance estimates. The variance ratio follows an F distribution under the null hypothesis that $\sigma_1^2$ = $\sigma_2^2$ and is indexed by the two parameters termed the numerator and denominator degrees of freedom, respectively. If the sizes of the first and second samples are n1 and n2 respectively, then the variance ratio follows an F distribution with n1-1 (numerator df) and n2-1 (denominator df), which is called an $F_{(n-1),(n-2)}$ distribution. If the two normal populations have different standard deviations, the F distribution is scaled by their ratio. However if the two groups really have the same population standard deviations, the distribution does not involve any unknown parameters.
+
+First using simulation we explore the case where the two normal populations have different standard deviations. Later we show how to perform the F test and demonstrate caution is required when using bootstrap and simulations with small sample sizes to test equality of variances. More extensive testing is needed but the need for caution is demonstrated. 
+
+
+
+```{r set-options, echo=FALSE, cache=FALSE, warning = FALSE}
+
+        rm(list=ls())
+
+        set.seed(123)
+        startTime<-proc.time()
+        library(knitr)
+        options(width=120)
+        opts_chunk$set(comment = "", warning = FALSE, message = FALSE,
+                       echo = TRUE, tidy = FALSE, size="tiny",  cache=FALSE,
+                       progress=TRUE,
+                       cache.path = 'program_Cache/',
+                       fig.path='figure/')
+         
+        knitr::knit_hooks$set(inline = function(x) {
+          knitr:::format_sci(x, 'md')
+        })
+```
+
+```{r prerequisites, echo=FALSE}
+ 
+        where<-"home" #this is used in the sourced program 
+ 
+        path <- ""  
+     
+        work<-    paste("X:/", path, sep = "")
+        nonwork<- paste("~/X/", path, sep = "")
+        if (where=="home") {wd<- nonwork} else {wd<-work}
+        
+        path2 <- "CUSTOMER\\SYROS\\CLIA VAIDATION RARalpha\\VACUFUGE\\DATA"  
+        work2<-    paste("X:/", path2, sep = "")
+        nonwork2<- paste("~/X/", path2, sep = "")
+        
+        if (where=="home") {wd2<- nonwork2} else {wd2<-work2}
+        
+        work3<-    paste("X:/FUNCTIONS/R", sep = "")
+        nonwork3<- paste("~/X/FUNCTIONS/R", sep = "")
+        
+        if (where=="home") {wd3<- nonwork3} else {wd3<-work3}
+        setwd(wd)
+        opts_knit$set(root.dir = wd)                  ##THIS SETS YOUR WORKING DIRECTORY
+        
+ 
+        
+        
+        
+```
+ 
+ 
+```{r preliminaries perhaps , echo=FALSE, results='hide'}
+
+
+        list.of.packages <- c("boot","bootstrap")
+        
+        new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+        if(length(new.packages)) install.packages(new.packages)
+        
+        sapply(X = list.of.packages, require, character.only = TRUE)
+
+
+        p3 <- function(x) {formatC(x, format="f", digits=3)}
+        p4 <- function(x) {formatC(x, format="f", digits=4)}
+        p2 <- function(x) {formatC(x, format="f", digits=2)}
+         p1 <- function(x) {formatC(x, format="f", digits=0)}
+        # p1 <- function(x) {print(formatC(x, format="f", digits=1),quote=FALSE)}
+        # p2 <- function(x) {print(formatC(x, format="f", digits=2),quote=FALSE)}
+        # p3 <- function(x) {print(formatC(x, format="f", digits=3),quote=FALSE)}
+        # p4 <- function(x) {print(formatC(x, format="f", digits=4),quote=FALSE)}
+        #perhaps help colour plot text based on loop count
+        is.even <- function(x){ x %% 2 == 0 }
+  
+```            
+
+### Population and sample size 
+
+```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='asis' }  
+ 
+    s1 <- 1.0                                              # true standard deviation population 1
+    s2 <- 1.1                                              # true standard deviation population 2
+    ratio <- s1^2 / s2^2                                   # true ratio of population variances
+    
+    n1 <- 3                                                # (small) sample size from population 1
+    n2 <- 4                                                # (small) sample size from population 2
+    
+    mu <- 0                                                # Common mean, not important
+    n.sim <- 10^5                                          # Number of simulations
+
+```
+
+### Simulate many samples from populations
+
+```{r echo=TRUE, eval=TRUE, tidy=TRUE, results='markup' }  
+
+    z <- matrix(rnorm(n1*n.sim, mean=mu, sd=s1), ncol=n.sim)    
+    y <- matrix(rnorm(n2*n.sim, mean=mu, sd=s2), ncol=n.sim)  
+    
+    z[1:n1,1:5]  # examine the data
+    y[1:n2,1:5]  # examine the data
+
+```
+
+### Calculate the variance for each sample and calculate the ratio of the variances
+
+```{r echo=TRUE, eval=TRUE, tidy=TRUE, results='markup' }  
+    
+    num <- apply(z, 2, var)
+    den <- apply(y, 2, var) 
+    
+    head(num)  # examine the data
+    head(den)  # examine the data
+    
+    Fsim <- num / den       
+     
+    head(Fsim)  # examine the ratio of the data
+     
+
+```            
+\newpage 
+
+### Plot the distribution of the ratios and overlay the F distribution that is dictated by the sample sizes
+
+```{r echo=TRUE, fig.cap="The small sample sizes result in a very skewed F distribution, so it is hard to tell if the theoretical curve fits the data. The blue lines are the 95% percentiles for testing equality of variances."} 
+
+    hist((Fsim), probability=TRUE, breaks=75, col = rainbow(75),
+         main=paste("F distribution s1^2 / s2^2 \ntruth sd(s1)=",s1, "sd(s2)=",s2,sep=" "))
+    
+    # and multiply s2^2/s1^2 just to get height of curve correct
+    curve( df(x,  n1-1, n2-1)*1/ratio,                
+           add=TRUE, from=(min(Fsim)), 
+           to= (max(Fsim)), col="black", lwd=2)
+    
+    abline(v=(qf(0.975,n1-1,n2-1)), col='blue')
+    abline(v=(qf(0.025,n1-1,n2-1)), col='blue')
+ 
+ 
+
+```    
+
+\newpage 
+
+### Plot the distribution of the ratios and overlay the F distribution that is dictated by the sample sizes, this time the F distribution is scaled by the true SDs. This is a toy example as we never have the luxury of knowing the true population SDs
+
+```{r echo=TRUE, fig.cap="The small sample size results in a very skewed F distribution, so it is hard to tell if the scaled theoretical curve fits the data. The blue lines are the 95% percentiles for testing equality of variances."} 
+
+    hist((Fsim ), probability=TRUE, breaks=75, col = rainbow(75), 
+        main=paste("F distribution scaled by s1^2 / s2^2 \ntruth sd(s1)=",s1, "sd(s2)=",s2,sep=" "))
+    
+    # scale the f distribution by the ratio of the true variances
+    # and multiply s2^2/s1^2 just to get height of curve correct
+    curve(df(x/(ratio), n1-1, n2-1)* 1/(ratio),  
+          add=TRUE, from=(min(Fsim)), 
+          to= (max(Fsim)), col="black", lwd=2)
+    
+    abline(v= (qf(0.975,n1-1,n2-1)*ratio), col='blue')
+    abline(v= (qf(0.025,n1-1,n2-1)*ratio), col='blue')
+
+
+```            
+
+\newpage 
+
+### On the log scale plot the distribution of the ratios and overlay the F distribution that is dictated by the sample sizes
+
+```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='asis' , fig.cap="On the log scale the comparison is made clearer and it is apparent the theoretical curve is not a good fit for the data. The blue lines are the 95% percentiles for testing equality of variances."} 
+
+
+      hist(log(Fsim), probability=TRUE, breaks=75, col = rainbow(75), # log scale
+            main=paste("F distribution s1^2 / s2^2 \ntruth sd(s1)=",s1, "sd(s2)=",s2,sep=" "))
+    
+      # and multiply s2^2/s1^2 just to get height of curve correct
+      curve( df(exp(x),  n1-1, n2-1)*exp(x)*(1/ratio)  ,   
+             add=TRUE, from=log(min(Fsim)),  
+             to= log(max(Fsim)), col="black", lwd=2)
+      
+      abline(v=log(qf(0.975,n1-1,n2-1)), col='blue')
+      abline(v=log(qf(0.025,n1-1,n2-1)), col='blue')
+
+```            
+
+\newpage 
+
+### On the log scale plot the distribution of the ratios and overlay the F distribution that is dictated by the sample sizes, this time the F distribution is scaled by the true SDs. This is a toy example as we never have the luxury of knowing the true population SDs.
+
+
+```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='asis' , fig.cap="On the log scale the comparison is made clearer and it is apparent the scaled theoretical curve is a good fit for the data, as it should be. The blue lines are the 95% percentiles for testing equality of variances. The red lines are the 95% percentiles for testing the population variance null of s1^2 / S2^2 = 1.0/1.1"} 
+
+      hist(log(Fsim ), probability=TRUE, breaks=75, col = rainbow(75),   # log scale
+           main=paste("F distribution scaled by s1^2 / s2^2 \ntruth sd(s1)=",s1, "sd(s2)=",s2,sep=" "))
+      
+      # scale the f distribution by the ratio of the true variances
+      # and multiply s2^2/s1^2 just to get height of curve correct
+      curve(df(exp(x)/(ratio), n1-1, n2-1)* exp(x)*(1/(ratio)), 
+            add=TRUE, from=log(min(Fsim)), 
+            to= log(max(Fsim)), col="black", lwd=2)
+      
+      abline(v=log(qf(0.975,n1-1,n2-1) ), col='blue'); 
+      abline(v=log(qf(0.975,n1-1,n2-1)*ratio), col='red')
+      abline(v=log(qf(0.025,n1-1,n2-1) ), col='blue'); 
+      abline(v=log(qf(0.025,n1-1,n2-1)*ratio), col='red')
+
+      
+```
+
+\clearpage
+\newpage
+
+
+### What proportion of results are in the tails of the distributions? First the unscaled. This should not be ~2.5% in each as we know the population variances are not equal
+
+
+```{r echo=TRUE, results='asis'}      
+      
+    low1 <- qf(0.025,n1-1,n2-1)
+    upp1 <- qf(0.975,n1-1,n2-1)
+ 
+    length(Fsim[Fsim>upp1]) / n.sim
+    length(Fsim[Fsim<low1]) / n.sim
+    
+```
+
+### Now the scaled. This should be ~2.5% in each as we know the population variances are not equal and have scaled accordingly
+
+
+```{r echo=TRUE, results='asis'}      
+          
+    low2 <- qf(0.025,n1-1,n2-1) * ratio
+    upp2 <- qf(0.975,n1-1,n2-1) * ratio
+    
+    length(Fsim[Fsim>upp2]) / n.sim
+    length(Fsim[Fsim<low2]) / n.sim
+
+    
+```
+
+\clearpage
+\newpage
+
+*********************
+
+### Move on to look at testing equality of variance. Here is a function to calculate the F test p value, the actual samples from the population must be entered into the function.
+
+
+```{r echo=TRUE, results='asis'}
+
+    # enter each sample 
+    variance.ratio<-function (x, y) {
+    
+      if (var(x) > var(y)) {
+        
+        vr <- var(x)/var(y)
+        df1 <- length(x)-1
+        df2 <- length(y)-1
+        
+        } else { 
+          
+        vr <- var(y)/var(x)
+        df1 <- length(y)-1
+        df2 <- length(x)-1
+        }
+      
+        2*(1-pf(vr,df1,df2))
+      }
+
+```
+ 
+### Function to calculate F test p value and ratio confidence interval, the variance and df for each sample are required.
+
+
+
+```{r echo=TRUE, results='markup'}
+
+      # enter each variance and each degrees of freedom
+      var.rat <- function (v1, df1, v2, df2) {  
+        V.x <- v1
+        DF.x <- df1 
+        V.y <- v2
+        DF.y <- df2
+        ratio <- 1
+        conf.level <- 0.95
+        ESTIMATE <- V.x/V.y
+        STATISTIC <- ESTIMATE/ratio
+        PARAMETER <- c( DF.x,  DF.y)
+        PVAL <- pf(STATISTIC, DF.x, DF.y)
+        PVAL <- 2 * min(PVAL, 1 - PVAL)
+        BETA <- (1 - conf.level)/2
+        CINT <- c(ESTIMATE/qf(1 - BETA, DF.x, DF.y),
+                  ESTIMATE/qf(BETA, DF.x, DF.y))
+        c(ESTIMATE, CINT, PVAL)
+      }
+
+```
+
+\clearpage
+\newpage
+
+*************************
+
+### Let's perform the F test manually, create some data, note very small sample sizes
+
+
+```{r echo=TRUE, results='markup'}
+      
+      
+      s1 <- 10:12 ; s2 <- 13:16
+      n1 <- length(s1) ; n2 <- length(s2)
+      
+      
+```
+
+### Manual F test, and options to calculate the ratio confidence limits. The symmetry properties of the F distribution make it possible to derive the lower percentage points of any F distribution from the corresponding upper percentage points of an F distribution with the degrees of freedom reversed.
+
+
+```{r echo=TRUE, results='asis'}
+    
+      (vr <- var(s1)/var(s2))     # ratio of variances
+ 
+      vr*qf(0.025, n2-1, n1-1)    # lower
+      vr*qf(0.975, n2-1, n1-1)    # upper
+      
+      vr/qf(0.975, n1-1, n2-1)    # lower
+      vr/qf(0.025, n1-1, n2-1)    # upper
+      
+      
+      
+```
+
+\newpage
+
+### F test using functions  
+
+
+```{r echo=TRUE, results='markup'}      
+      
+      # base R function, requires the actual samples s1 and s2 in our example
+      var.test(s1, s2)
+    
+      # function defined earlier, returns only the p value for test of null hypthesis var(a)=var(b)
+      variance.ratio(s1,s2)  
+      
+      # function defined earlier
+      var.rat(var(s1), n1-1, var(s2), n2-1) 
+      
+
+```
+
+\clearpage
+\newpage
+
+
+*************************
+
+### Simulation is not advisable with small samples!
+
+
+```{r echo=TRUE, results='asis' , tidy=FALSE}
+      
+    n.sim <- 10^4  
+ 
+     x<-replicate(n.sim,
+                   var( rnorm(n1, 0, sd(s1))) / 
+                   var( rnorm(n2, 0, sd(s2)))
+    )
+    quantile(x, c(0.025, 0.975))
+
+```
+ 
+
+### Simulation again is not advisable with small samples!
+
+
+```{r echo=TRUE, results='asis' , tidy=FALSE}
+
+      x <- matrix(rnorm(n1*n.sim, mean=0, sd=sd(s1)), ncol=n.sim) 
+      y <- matrix(rnorm(n2*n.sim, mean=0, sd=sd(s2)), ncol=n.sim) 
+      num <-  apply(x, 2, var)
+      den  <- apply(y, 2, var) 
+      Fsim <- num / den       
+      quantile(Fsim , c(0.025, 0.975))
+
+```
+
+### Bootstrap is not advisable with small samples!
+
+```{r echo=TRUE, results='markup' , tidy=FALSE}
+
+      
+      bootstrapStat = rep(NA,n.sim)
+  
+      for (i in 1: n.sim) { 
+            bootstrapStat[i] = c( var(sample(s1, replace=T)) / var(sample(s2, replace=T)) )
+      }
+      
+      quantile( bootstrapStat,c(0.025, .975), na.rm=T) 
+
+      
+```
+
+\clearpage
+\newpage
+
+
+*************************
+
+### Set up an example with larger sample sizes
+
+
+```{r echo=TRUE, results='asis' , tidy=FALSE}
+      
+    n1 <- 30  
+    n2 <- 40  
+    s1 <- rnorm(n1, 0, 1)  
+    s2 <- rnorm(n2, 0, 2)  
+    n1 <- length(s1)
+    n2 <- length(s2)
+    
+    n.sim <- 10^4  
+
+```
+
+### Base var.test function
+
+
+```{r echo=TRUE, results='markup' , tidy=FALSE}    
+      
+    var.test(s1, s2)
+    
+    
+```
+
+### Simulation 1
+
+
+```{r echo=TRUE, results='asis' , tidy=FALSE}
+          
+     
+    x<-replicate(n.sim,
+                   var( rnorm(n1, 0, sd(s1))) / 
+                   var( rnorm(n2, 0, sd(s2)))
+    )
+    quantile(x, c(0.025, 0.975))
+
+```
+ 
+
+### Simulation again with larger samples
+
+
+```{r echo=TRUE, results='asis' , tidy=FALSE}
+
+      x <- matrix(rnorm(n1*n.sim, mean=0, sd=sd(s1)), ncol=n.sim) 
+      y <- matrix(rnorm(n2*n.sim, mean=0, sd=sd(s2)), ncol=n.sim) 
+      num <-  apply(x, 2, var)
+      den  <- apply(y, 2, var) 
+      Fsim <- num / den       
+      quantile(Fsim , c(0.025, 0.975))
+
+```
+
+### Bootstrap with larger samples
+
+```{r echo=TRUE, results='markup' , tidy=FALSE}
+
+      bootstrapStat = rep(NA,n.sim)
+  
+      for (i in 1: n.sim) { 
+            bootstrapStat[i] = c( var(sample(s1, replace=T)) / var(sample(s2, replace=T)) )
+      }
+      
+      quantile( bootstrapStat,c(0.025, .975), na.rm=T) 
+
+      
+```
+
+### Bootstrap with larger samples, more examples of doing the same thing namely bootstrapping
+
+```{r echo=TRUE, results='markup' , tidy=FALSE}
+
+      x <- s1
+      y <- s2
+
+      ratio <- function(d, i) {var(x[i]) / var(y[i])}
+      bb<-boot(x, ratio, R=n.sim, stype="i")
+      boot.ci(bb )
+
+```
+
+### Bootstrap with larger samples, more examples of doing the same thing namely bootstrapping
+
+```{r echo=TRUE, results='markup' , tidy=FALSE}
+      
+      ratio <- function(d, i) {var(rnorm( n1,0,sd(s1)) * i) / var(rnorm( n2,0,sd(s2)) * i)}
+      bb<-boot(x, ratio, R=n.sim, stype="i")
+      boot.ci(bb )
+
+
+```
+
+### Bootstrap with larger samples, more examples of doing the same thing namely bootstrapping
+
+```{r echo=TRUE, results='markup' , tidy=FALSE}
+
+
+      y1 <- c(x,y)
+      group <- c(rep(1, each=n1),rep(2, each=n2))
+      xx <- as.data.frame(cbind(group, y1))
+      
+      b<-NULL
+      b <- boot(data=x, 
+                statistic = function(x, i) {
+                  booty <- tapply( xx$y, xx$group, FUN=function(x) sample(x, length(x),TRUE))
+                  1/exp(diff(log(sapply(booty, var) )))  # take the difference of the log variances
+                },
+                R=n.sim)
+      boot.ci(b)
+
+
+
+```
+
+### Bootstrap with larger samples, more examples of doing the same thing namely bootstrapping
+
+```{r echo=TRUE, results='markup' , tidy=FALSE}
+
+
+      b1 <- bootstrap(x, n.sim, var)
+      b2 <- bootstrap(y, n.sim, var)
+      rat <- b1$thetastar/ b2$thetastar
+      quantile(rat , c(.025, .975), na.rm=T)
+
+
+```
+
+### References 
+
+https://www.safaribooksonline.com/library/view/the-r-book/9780470510247/ch002-sec049.html  
+http://www.ncss.com/wp-content/themes/ncss/pdf/Procedures/PASS/Confidence_Intervals_for_the_Ratio_of_Two_Variances_using_Variances.pdf  
+https://stat.ethz.ch/R-manual/R-devel/library/stats/html/var.test.html  
+http://stackoverflow.com/questions/18255757/is-it-possible-to-pass-samples-of-unequal-size-to-function-boot-in-r  
+https://cran.r-project.org/web/packages/bootstrap/bootstrap.pdf p20
+
+
+\clearpage
+\pagebreak 
+
+
+### Computing Environment
+
+```{r, echo=FALSE}
+#opts_knit$set(root.dir = wd)   ##THIS SETS YOUR WORKING DIRECTORY
+sessionInfo()
+print(wd)
+```
+```{r echo=FALSE}
+stopTime<-proc.time()
+```
+This took `r (stopTime-startTime)[1][[1]]` seconds to execute. 
+  
+

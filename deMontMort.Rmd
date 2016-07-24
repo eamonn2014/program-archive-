@@ -1,0 +1,130 @@
+---
+title: "Pierre Rémond de Montmort's matching problem 1708"
+date: "Sunday, May 21, 2016"
+output: html_document
+---
+
+ 
+```{r set-options, echo=FALSE, cache=FALSE  , message=F, warning=F} 
+    rm(list=ls()) 
+    startTime<-proc.time()
+    options(width=120)
+    require(knitr)
+    knitr::opts_chunk$set(comment = "", warning = FALSE, message = FALSE, 
+                   echo = TRUE, tidy = FALSE, size="tiny",  
+                   cache=TRUE, progress=TRUE, cache.path = 'Coin_Cache/', 
+                   fig.path='figure/') 
+
+``` 
+************************
+
+**The biggest coincidence of all would be if there were no coincidences.**
+
+**`In its simplest form the problem of coincidences (matches, recontres) may be formulated as follows: Let there be n objects numbered from 1 to n, and let them be ordered at random, assuming that the n! permutations are equally probable. A coincidence occurs if object number i is found at the ith place. The problem is to find the number of permutations with at least one coincidence or, equivalently, the probability of at least one coincidence.**
+
+**When the sample size is 5, what's the probability of observing at least one match? For n = 5, the argument is as follows: The number of permutations of 5 cards is 5! = 120. Among these there are 24 in which 1 is in first place, 18 in which 2 is in second place without 1 being first, 14 in which 3 is in third place without 1 being first or 2 being second, 11 in which 4 is in fourth place without 1 being first, 2 being second or 3 being third, and, finally, 9 in which 5 is in fifth place, the other four being out of their places. The probability of at least one coincidence is therefore:'** [A. Hald]
+
+```{r  , echo=TRUE, cache=FALSE  , message=F, warning=F} 
+
+   (numerator <- 24 + 18 + 14 + 11 + 9)
+   (denominator <- 5 * 4 * 3 * 2 * 1)        
+    numerator / denominator
+ 
+``` 
+
+************************
+
+**Plot a simulated example, do we observe at least one match?**
+
+
+```{r  , echo=TRUE, cache=FALSE  , message=F, warning=F} 
+
+    set.seed(nchar("de Montmort"))       # Reproducible results
+    z <- round(runif(1, 5, 1000), 0)     # Randomly choose a sample size
+    f <- sample(1:z, z)                  # Shuffle the deck
+    y <- 1:z                             # The original order
+    res <- (sum(f==y)) > 0               # Does at least one card match the original order?
+    which(f==y)                          # When do we encounter the matches?
+    
+    # Plot the single simulation
+    
+    colr <- ifelse(f==y, 'red', 'black') 
+    cexr <- ifelse(f==y, 2, 1)
+    pchr <- ifelse(f==y, 16, 20)
+    
+    plot(f, col = colr, cex = cexr, pch = pchr,
+    main = paste("N=", z, ", Do we see at least 1 match?", res, ", Matches found", sum(f==y), sep = " ")) 
+    abline(0,1)
+
+
+``` 
+
+************************
+
+**Simulate a large number of times**
+
+```{r  , echo=TRUE, cache=FALSE  , message=F, warning=F} 
+
+    # On average what is the chance of observing at least one match?
+    
+    z <- f <- y <- res <- NULL
+    
+    deM <- function() {
+      
+      z <- round(runif(1, 5, 1e4), 0)   # Let us vary the sample size each time
+      f <- sample(1:z, z)               # Shuffle the deck
+      y <- 1:z                          # The original order
+      res <- sum(f==y) > 0              # Does at least one card match the original order?
+      
+    }
+    
+    mean(replicate( 1e5, deM() ))       # Execute function large number of times
+
+```    
+    
+************************
+
+**Simulate a large number of times with a sample size 100, another version**
+
+```{r  , echo=TRUE, cache=FALSE  , message=F, warning=F}     
+    
+  n <- 1e6    
+  samp <- 100   
+  
+  foo <- numeric( n )
+    for( i in 1:n ) foo[i] <- sum( sample( 1:samp, samp ) == 1:samp ) ==  0
+  1-mean( foo ) 
+      
+    
+``` 
+
+************************
+
+**Analytical solution 1 - 1/e**
+
+```{r  , echo=TRUE, cache=FALSE  , message=F, warning=F} 
+ 
+
+    1 - ( 1 / exp(1) )  
+    
+    ( exp(1) - 1 ) / exp(1)  # same
+
+    
+``` 
+
+************************
+
+**Reference** 
+
+A. Hald, A History of Probability and Statistics and their Applications Before 1750, Wiley, New York, 1990.  
+
+**Computing Environment**
+
+```{r, echo=FALSE}
+sessionInfo()
+ 
+```
+```{r echo=FALSE}
+stopTime<-proc.time()
+```
+This took `r (stopTime-startTime)[1][[1]]` seconds to execute.
