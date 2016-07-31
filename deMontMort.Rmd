@@ -1,14 +1,22 @@
 ---
 title: "Pierre Remond de Montmort's matching problem 1708"
+author: "Eamonn O'Brien"
+output:
+  pdf_document:
+    fig_caption: yes
+    fig_height: 6
+    fig_width: 8
+    number_sections: yes
+  html_document: default
 date: "Sunday, May 21, 2016"
-output: html_document
 ---
 
  
-```{r set-options, echo=FALSE, cache=FALSE  , message=F, warning=F} 
+```{r set-options, echo=FALSE, cache=FALSE, message=F, warning=F} 
+
     rm(list=ls()) 
     startTime<-proc.time()
-    options(width=120)
+    options(width=70)
     require(knitr)
     knitr::opts_chunk$set(comment = "", warning = FALSE, message = FALSE, 
                    echo = TRUE, tidy = FALSE, size="tiny",  
@@ -16,15 +24,15 @@ output: html_document
                    fig.path='figure/') 
 
 ``` 
-************************
 
-**The biggest coincidence of all would be if there were no coincidences.**
+
+# The biggest coincidence of all would be if there were no coincidences
 
 **`In its simplest form the problem of coincidences (matches, recontres) may be formulated as follows: Let there be n objects numbered from 1 to n, and let them be ordered at random, assuming that the n! permutations are equally probable. A coincidence occurs if object number i is found at the ith place. The problem is to find the number of permutations with at least one coincidence or, equivalently, the probability of at least one coincidence.**
 
 **When the sample size is 5, what's the probability of observing at least one match? For n = 5, the argument is as follows: The number of permutations of 5 cards is 5! = 120. Among these there are 24 in which 1 is in first place, 18 in which 2 is in second place without 1 being first, 14 in which 3 is in third place without 1 being first or 2 being second, 11 in which 4 is in fourth place without 1 being first, 2 being second or 3 being third, and, finally, 9 in which 5 is in fifth place, the other four being out of their places. The probability of at least one coincidence is therefore:'** [A. Hald]
 
-```{r  , echo=TRUE, cache=FALSE  , message=F, warning=F} 
+```{r  , echo=TRUE, cache=FALSE, message=F, warning=F} 
 
    (numerator <- 24 + 18 + 14 + 11 + 9)
    (denominator <- 5 * 4 * 3 * 2 * 1)        
@@ -32,9 +40,9 @@ output: html_document
  
 ``` 
 
-************************
+\newpage 
 
-**Plot a simulated example, do we observe at least one match?**
+# Plot a simulated example, do we observe at least one match?
 
 
 ```{r  , echo=TRUE, cache=FALSE  , message=F, warning=F} 
@@ -59,9 +67,9 @@ output: html_document
 
 ``` 
 
-************************
+\newpage
 
-**Simulate a large number of times**
+# Simulate a large number of times
 
 ```{r  , echo=TRUE, cache=FALSE  , message=F, warning=F} 
 
@@ -82,9 +90,9 @@ output: html_document
 
 ```    
     
-************************
+ 
 
-**Simulate a large number of times with a sample size 100, another version**
+# Simulate a large number of times with a sample size 100, another version
 
 ```{r  , echo=TRUE, cache=FALSE  , message=F, warning=F}     
     
@@ -98,9 +106,9 @@ output: html_document
     
 ``` 
 
-************************
+ 
 
-**Analytical solution 1 - 1/e**
+# Analytical solution 1 - 1/e
 
 ```{r  , echo=TRUE, cache=FALSE  , message=F, warning=F} 
  
@@ -112,17 +120,17 @@ output: html_document
     
 ``` 
 
-************************
 
-**Reference** 
+# Reference
 
 A. Hald, A History of Probability and Statistics and their Applications Before 1750, Wiley, New York, 1990.  
 
 https://github.com/eamonn2014/programs/blob/master/deMontMort.Rmd  
 
-**Computing Environment**
+# Computing Environment 
 
 ```{r, echo=FALSE}
+options(width=70)
 sessionInfo()
  
 ```
