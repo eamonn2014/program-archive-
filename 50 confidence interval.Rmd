@@ -1,14 +1,15 @@
 ---
-title: When the sample size is two, a 50% confidence interval is defined by the two values
+title: When the sample size is two, a 50% confidence interval is defined by the two
+  values
 author: "Eamonn O'Brien"
 date: "6 July 2016"
 output:
-  html_document: default
   pdf_document:
     fig_caption: yes
     fig_height: 3
     fig_width: 8
     number_sections: yes
+  html_document: default
 ---
  
 
@@ -78,7 +79,7 @@ output:
         
 ```
  
-### Sample two realisations from a normally distributed population
+# Sample two realisations from a normally distributed population
 
 ```{r , echo=TRUE, tidy=FALSE, comment="", cache=FALSE}
 
@@ -95,7 +96,7 @@ output:
         
 ```
 
-###  Calculate the confidence interval
+#  Calculate the confidence interval
 
 ```{r , echo=TRUE, tidy=FALSE, comment="", cache=FALSE}    
     
@@ -104,7 +105,7 @@ output:
     
 ```
 
-###  Calculate again using one sample t-test function
+#  Calculate again using one sample t-test function
 
 ```{r parameters, echo=TRUE, tidy=FALSE, comment="", cache=FALSE}        
 
@@ -112,15 +113,16 @@ output:
    
 
 ```
- 
-\newpage
-\pagebreak
 
-### Computing Environment
+# References
+
+https://github.com/eamonn2014/programs/blob/master/50%20confidence%20interval.Rmd
+
+# Computing Environment
  
  
 ```{r, echo=FALSE}
- 
+options(width=70)
 opts_knit$set(root.dir = wd)   ##THIS SETS YOUR WORKING DIRECTORY
 sessionInfo()
 print(wd)
