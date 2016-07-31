@@ -1,5 +1,5 @@
 ---
-title: 'Natura non facit saltus (Nature does not make jumps) -- Gottfried Wilhelm Leibniz' 
+title: 'Natura non facit saltus (Nature does not make jumps)' 
 author: "Eamonn O'Brien"
 date: '`r format(Sys.time(), "%d %B, %Y")`'
 output:
@@ -12,14 +12,14 @@ output:
   word_document: default
 ---
 
-# <span style="color:brown"> 'Cutpoints made up by boys in back rooms'</span>
+# <span style="color:brown"> Cutpoints made up by boys in back rooms</span>
 
 Clinical laboratory procedures are optimised to efficiently process patient samples in order 
 to generate high quality patient information with low sample attrition. Yet the same is often not true in the analysis of laboratory data. Many machine learning techniques that are applied in this setting use improper accuracy scoring rules to dichotomise the output of laboratory processes, effectively throwing away precious patient samples. Optimisation of improper accuracy scoring rules will result in the wrong answer. Many clinicians too prefer 'classifying' patients, dichotomising continuous data and therefore patients, as 'high'/'low', 'positive'/'negative' etc, despite the loss of information and the detrimental impact to the patient. Information loss is greatest with only two groups, but this approach is most common. Cutpoints simply do not exist for continuous data as the cutpoint has to be a function of all other relevant covariates. Dichotomisation of clinical data is a truly disastrous practice, reducing statistical power, concealling non-linear relationships, is a colossal waste of time, money and resources; and yet it persists.  The statistican should not be the provider of the utility function, rather it is a job of the statistician to use all information as efficiently as possible and to deliver probabilities. A lack of statistical knowledge at all levels, including senior management is a major contributing factor to this issue. 
 
 The following is an example of one problem that does not exist, yet is created by dichotomisation. An arbitrary cutpoint for an assay is used forcing a binary decision such that patients with results either side of the cutpoint are managed differently, perhaps 'positive' results (less than the cutpoint) are recruited on to a trial. A concern is raised regarding the 'misclassification' of patients that result from measurement error. 
 
-The quote above is attributed to Frank Harrell Jr.
+The section heading is attributed to Frank Harrell Jr and the document title uses a quote from Gottfried Wilhelm Leibniz.
  
 
 ```{r set-options, echo=FALSE, cache=FALSE, warning = FALSE}
