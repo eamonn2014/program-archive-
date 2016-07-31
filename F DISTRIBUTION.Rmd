@@ -1,14 +1,14 @@
 ---
-title: "F Distribution: An investigation on the ratio of variances"
+title: 'F Distribution: An investigation on the ratio of variances'
 author: "Eamonn O'Brien"
 date: '`r format(Sys.time(), "%d %B, %Y")`'
 output:
-  html_document: default
   pdf_document:
     fig_caption: yes
     fig_height: 6
     fig_width: 8
     number_sections: yes
+  html_document: default
   word_document: default
 ---
 
@@ -98,7 +98,7 @@ First using simulation we explore the case where the two normal populations have
   
 ```            
 
-### Population and sample size 
+## Population and sample size 
 
 ```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='asis' }  
  
@@ -114,7 +114,7 @@ First using simulation we explore the case where the two normal populations have
 
 ```
 
-### Simulate many samples from populations
+## Simulate many samples from populations
 
 ```{r echo=TRUE, eval=TRUE, tidy=TRUE, results='markup' }  
 
@@ -126,7 +126,7 @@ First using simulation we explore the case where the two normal populations have
 
 ```
 
-### Calculate the variance for each sample and calculate the ratio of the variances
+## Calculate the variance for each sample and calculate the ratio of the variances
 
 ```{r echo=TRUE, eval=TRUE, tidy=TRUE, results='markup' }  
     
@@ -144,7 +144,7 @@ First using simulation we explore the case where the two normal populations have
 ```            
 \newpage 
 
-### Plot the distribution of the ratios and overlay the F distribution that is dictated by the sample sizes
+## Plot the distribution of the ratios and overlay the F distribution that is dictated by the sample sizes
 
 ```{r echo=TRUE, fig.cap="The small sample sizes result in a very skewed F distribution, so it is hard to tell if the theoretical curve fits the data. The blue lines are the 95% percentiles for testing equality of variances."} 
 
@@ -165,7 +165,7 @@ First using simulation we explore the case where the two normal populations have
 
 \newpage 
 
-### Plot the distribution of the ratios and overlay the F distribution that is dictated by the sample sizes, this time the F distribution is scaled by the true SDs. This is a toy example as we never have the luxury of knowing the true population SDs
+## Plot the distribution of the ratios and overlay the F distribution that is dictated by the sample sizes, this time the F distribution is scaled by the true SDs. This is a toy example as we never have the luxury of knowing the true population SDs
 
 ```{r echo=TRUE, fig.cap="The small sample size results in a very skewed F distribution, so it is hard to tell if the scaled theoretical curve fits the data. The blue lines are the 95% percentiles for testing equality of variances."} 
 
@@ -186,7 +186,7 @@ First using simulation we explore the case where the two normal populations have
 
 \newpage 
 
-### On the log scale plot the distribution of the ratios and overlay the F distribution that is dictated by the sample sizes
+## On the log scale plot the distribution of the ratios and overlay the F distribution that is dictated by the sample sizes
 
 ```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='asis' , fig.cap="On the log scale the comparison is made clearer and it is apparent the theoretical curve is not a good fit for the data. The blue lines are the 95% percentiles for testing equality of variances."} 
 
@@ -206,7 +206,7 @@ First using simulation we explore the case where the two normal populations have
 
 \newpage 
 
-### On the log scale plot the distribution of the ratios and overlay the F distribution that is dictated by the sample sizes, this time the F distribution is scaled by the true SDs. This is a toy example as we never have the luxury of knowing the true population SDs.
+## On the log scale plot the distribution of the ratios and overlay the F distribution that is dictated by the sample sizes, this time the F distribution is scaled by the true SDs. This is a toy example as we never have the luxury of knowing the true population SDs.
 
 
 ```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='asis' , fig.cap="On the log scale the comparison is made clearer and it is apparent the scaled theoretical curve is a good fit for the data, as it should be. The blue lines are the 95% percentiles for testing equality of variances. The red lines are the 95% percentiles for testing the population variance null of s1^2 / S2^2 = 1.0/1.1"} 
@@ -232,7 +232,7 @@ First using simulation we explore the case where the two normal populations have
 \newpage
 
 
-### What proportion of results are in the tails of the distributions? First the unscaled. This should not be ~2.5% in each as we know the population variances are not equal
+## What proportion of results are in the tails of the distributions? First the unscaled. This should not be ~2.5% in each as we know the population variances are not equal
 
 
 ```{r echo=TRUE, results='asis'}      
@@ -245,7 +245,7 @@ First using simulation we explore the case where the two normal populations have
     
 ```
 
-### Now the scaled. This should be ~2.5% in each as we know the population variances are not equal and have scaled accordingly
+## Now the scaled. This should be ~2.5% in each as we know the population variances are not equal and have scaled accordingly
 
 
 ```{r echo=TRUE, results='asis'}      
@@ -262,9 +262,9 @@ First using simulation we explore the case where the two normal populations have
 \clearpage
 \newpage
 
-*********************
 
-### Move on to look at testing equality of variance. Here is a function to calculate the F test p value, the actual samples from the population must be entered into the function.
+
+# Move on to look at testing equality of variance. Here is a function to calculate the F test p value, the actual samples from the population must be entered into the function.
 
 
 ```{r echo=TRUE, results='asis'}
@@ -290,7 +290,7 @@ First using simulation we explore the case where the two normal populations have
 
 ```
  
-### Function to calculate F test p value and ratio confidence interval, the variance and df for each sample are required.
+## Function to calculate F test p value and ratio confidence interval, the variance and df for each sample are required.
 
 
 
@@ -320,9 +320,8 @@ First using simulation we explore the case where the two normal populations have
 \clearpage
 \newpage
 
-*************************
 
-### Let's perform the F test manually, create some data, note very small sample sizes
+## Let's perform the F test manually, create some data, note very small sample sizes
 
 
 ```{r echo=TRUE, results='markup'}
@@ -334,7 +333,7 @@ First using simulation we explore the case where the two normal populations have
       
 ```
 
-### Manual F test, and options to calculate the ratio confidence limits. The symmetry properties of the F distribution make it possible to derive the lower percentage points of any F distribution from the corresponding upper percentage points of an F distribution with the degrees of freedom reversed.
+## Manual F test, and options to calculate the ratio confidence limits. The symmetry properties of the F distribution make it possible to derive the lower percentage points of any F distribution from the corresponding upper percentage points of an F distribution with the degrees of freedom reversed.
 
 
 ```{r echo=TRUE, results='asis'}
@@ -353,7 +352,7 @@ First using simulation we explore the case where the two normal populations have
 
 \newpage
 
-### F test using functions  
+## F test using functions  
 
 
 ```{r echo=TRUE, results='markup'}      
@@ -372,11 +371,8 @@ First using simulation we explore the case where the two normal populations have
 
 \clearpage
 \newpage
-
-
-*************************
-
-### Simulation is not advisable with small samples!
+ 
+## Simulation is not advisable with small samples!
 
 
 ```{r echo=TRUE, results='asis' , tidy=FALSE}
@@ -392,7 +388,7 @@ First using simulation we explore the case where the two normal populations have
 ```
  
 
-### Simulation again is not advisable with small samples!
+## Simulation again is not advisable with small samples!
 
 
 ```{r echo=TRUE, results='asis' , tidy=FALSE}
@@ -406,7 +402,7 @@ First using simulation we explore the case where the two normal populations have
 
 ```
 
-### Bootstrap is not advisable with small samples!
+## Bootstrap is not advisable with small samples!
 
 ```{r echo=TRUE, results='markup' , tidy=FALSE}
 
@@ -426,9 +422,7 @@ First using simulation we explore the case where the two normal populations have
 \newpage
 
 
-*************************
-
-### Set up an example with larger sample sizes
+# Set up an example with larger sample sizes
 
 
 ```{r echo=TRUE, results='asis' , tidy=FALSE}
@@ -444,7 +438,7 @@ First using simulation we explore the case where the two normal populations have
 
 ```
 
-### Base var.test function
+## Base var.test function
 
 
 ```{r echo=TRUE, results='markup' , tidy=FALSE}    
@@ -454,7 +448,7 @@ First using simulation we explore the case where the two normal populations have
     
 ```
 
-### Simulation 1
+## Simulation 1
 
 
 ```{r echo=TRUE, results='asis' , tidy=FALSE}
@@ -468,8 +462,10 @@ First using simulation we explore the case where the two normal populations have
 
 ```
  
+\clearpage
+\newpage
 
-### Simulation again with larger samples
+## Simulation again with larger samples
 
 
 ```{r echo=TRUE, results='asis' , tidy=FALSE}
@@ -483,7 +479,7 @@ First using simulation we explore the case where the two normal populations have
 
 ```
 
-### Bootstrap with larger samples
+## Bootstrap with larger samples
 
 ```{r echo=TRUE, results='markup' , tidy=FALSE}
 
@@ -497,8 +493,10 @@ First using simulation we explore the case where the two normal populations have
 
       
 ```
+\clearpage
+\newpage
 
-### Bootstrap with larger samples, more examples of doing the same thing namely bootstrapping
+## Bootstrap with larger samples, more examples of doing the same thing, namely bootstrapping
 
 ```{r echo=TRUE, results='markup' , tidy=FALSE}
 
@@ -511,7 +509,7 @@ First using simulation we explore the case where the two normal populations have
 
 ```
 
-### Bootstrap with larger samples, more examples of doing the same thing namely bootstrapping
+## Bootstrap with larger samples, more examples of doing the same thing, namely bootstrapping
 
 ```{r echo=TRUE, results='markup' , tidy=FALSE}
       
@@ -522,7 +520,7 @@ First using simulation we explore the case where the two normal populations have
 
 ```
 
-### Bootstrap with larger samples, more examples of doing the same thing namely bootstrapping
+## Bootstrap with larger samples, more examples of doing the same thing, namely bootstrapping
 
 ```{r echo=TRUE, results='markup' , tidy=FALSE}
 
@@ -544,7 +542,7 @@ First using simulation we explore the case where the two normal populations have
 
 ```
 
-### Bootstrap with larger samples, more examples of doing the same thing namely bootstrapping
+## Bootstrap with larger samples, more examples of doing the same thing, namely bootstrapping
 
 ```{r echo=TRUE, results='markup' , tidy=FALSE}
 
@@ -557,8 +555,13 @@ First using simulation we explore the case where the two normal populations have
 
 ```
 
-### References 
+\clearpage
+\pagebreak 
 
+
+# References 
+
+https://github.com/eamonn2014/programs/blob/master/F%20DISTRIBUTION.Rmd  
 https://www.safaribooksonline.com/library/view/the-r-book/9780470510247/ch002-sec049.html  
 http://www.ncss.com/wp-content/themes/ncss/pdf/Procedures/PASS/Confidence_Intervals_for_the_Ratio_of_Two_Variances_using_Variances.pdf  
 https://stat.ethz.ch/R-manual/R-devel/library/stats/html/var.test.html  
@@ -566,14 +569,13 @@ http://stackoverflow.com/questions/18255757/is-it-possible-to-pass-samples-of-un
 https://cran.r-project.org/web/packages/bootstrap/bootstrap.pdf p20
 
 
-\clearpage
-\pagebreak 
 
 
-### Computing Environment
+# Computing Environment
 
 ```{r, echo=FALSE}
 #opts_knit$set(root.dir = wd)   ##THIS SETS YOUR WORKING DIRECTORY
+options(width=70)
 sessionInfo()
 print(wd)
 ```
