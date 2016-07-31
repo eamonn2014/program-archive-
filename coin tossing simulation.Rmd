@@ -1,0 +1,270 @@
+---
+title: "Coin tossing simulation investigation"
+date: "Saturday, January 03, 2015"
+author: "Eamonn O'Brien"
+output:
+  pdf_document:
+    fig_caption: yes
+    fig_height: 6
+    fig_width: 8
+    number_sections: yes
+  html_document: default
+  word_document: default
+---
+
+
+```{r set-options, echo=FALSE, cache=FALSE, warning = FALSE}
+
+        rm(list=ls())
+
+        set.seed(123)
+        startTime <- proc.time()
+        library(knitr)
+        options(width=120)
+        opts_chunk$set(comment = "", warning = FALSE, message = FALSE,
+                       echo = TRUE, tidy = FALSE, size="tiny",  cache=TRUE,
+                       progress=TRUE,
+                       cache.path = 'program_Cache/',
+                       fig.path='figure/')
+         
+        knitr::knit_hooks$set(inline = function(x) {
+          knitr:::format_sci(x, 'md')
+        })
+```
+
+```{r prerequites, echo=FALSE}
+wd <- getwd()
+setwd(wd)
+opts_knit$set(root.dir = wd)
+
+```
+**This note from David Spiegelhalter inspired me to look at coin tossing problems : 'What are the chances of 4 or more heads or 4 or more tails in _n_ coin tosses (with a fair coin)?...about 47% chance from 10 flips...with 11 ~ 51%...'**
+
+# What’s the probability of x consecutive results with a limited number of tosses?
+
+## Create a function
+
+```{r function}
+tmpfun <- function(x, y) {{
+  
+  foo <- rbinom(x, 1, 1/2)  # binomial distribution of fair coin tosses
+  rx <- rle(foo)            # function to examine runs in a sequence
+  
+   a <- any( rx$lengths  >= y )                       # any run of 0s or 1s in sequence?
+  
+   b <- any( rx$lengths[ rx$values %in% c(0) ] >= y ) # only run of 0s in sequence?
+  
+   c <- any( rx$lengths[ rx$values %in% c(1) ] >= y ) # only run of 1s in sequence?
+  
+   d <- any(rx$lengths[ rx$values %in% c(0)]>= y) &   # both 0s and 1s in a sequence?
+   any(rx$lengths[ rx$values %in% c(1)]>= y)
+
+   f <- (all(rx$lengths[ rx$values %in% c(0)] < y) & any(rx$lengths[ rx$values %in% c(1)] >= y))
+
+   g <- any(rx$lengths[ rx$values %in% c(0)] >= y)& all(rx$lengths[ rx$values %in% c(1)] < y )  
+}
+ret = list()  # think of a venn diagram
+ret$a  = a # any run of desired length , either heads or tails or both
+ret$b  = b # any run of desired length , tails only
+ret$c  = c # any run of desired length , heads only
+ret$d  = d # any run of desired length , of both heads and tails
+ret$f  = f # any run of desired length , with a (single) run of heads and so no run of tails
+ret$g  = g # any run of desired length , with a (single) run of tails and so no run of heads
+
+return(ret)
+
+}
+```
+\newpage
+## Execute function and manage the output
+```{r exec function}
+set.seed(123)   # reproducible result
+run <- 4        # number of consecutive tosses
+tosses <- 10    # total number of tosses
+
+z <- replicate(1e04 , tmpfun(tosses, run))  # execute function large number of times
+new_mat  <- array(as.numeric(z), dim(z))    # manage the output
+foo <- as.data.frame(as.matrix(t(new_mat))) # create a data frame
+head(foo)                                   # look at first 5 rows of data
+res <- apply(foo,2,mean)                    # calculate column averages and examine 
+```
+## The probability of `r run` runs or more in `r tosses` tosses is `r res[1]`. So `r 1-res[1]` of the time no run of `r run` heads and/or tails observed.
+
+```{r plot1, echo=FALSE }
+library(VennDiagram)
+grid.newpage()
+venn.plot <- draw.pairwise.venn(area1 = res[6]+res[4], area2 = res[5]+res[4], cross.area = res[4], category = c("tails",   "heads"), 
+        fill = c("blue", "red"), 
+        lty = "blank")
+grid.draw(venn.plot)
+```
+
+
+```{r exec function2, echo=FALSE}
+run <- 4          # number of consecutive tosses
+tosses <- 11      # total number of tosses
+
+z <- replicate(1e04 , tmpfun(tosses, run))    # execute function large number of times
+new_mat  <- array(as.numeric(z), dim(z))    # manage the output
+foo <- as.data.frame(as.matrix(t(new_mat))) # create a data frame
+res <- apply(foo,2,mean)                      # calculate column averages and examine
+```
+## The probability of `r run` runs or more in `r tosses` tosses is `r res[1]`. So `r 1-res[1]` of the time no run of `r run` heads and/or tails observed.
+
+```{r plot2, echo=FALSE}
+grid.newpage()
+grid.newpage()
+venn.plot <- draw.pairwise.venn(area1 = res[6]+res[4], area2 = res[5]+res[4], cross.area = res[4], category = c("tails",   "heads"), 
+        fill = c("blue", "red"), 
+        lty = "blank")
+grid.draw(venn.plot)
+```
+
+```{r exec function3, echo=FALSE}
+run <- 4         # number of consecutive tosses
+tosses <- 15     # total number of tosses
+
+z <- replicate(1e04 , tmpfun(tosses, run))    # execute function large number of times
+new_mat  <- array(as.numeric(z), dim(z))    # manage the output
+foo <- as.data.frame(as.matrix(t(new_mat))) # create a data frame
+res <- apply(foo,2,mean)                      # calculate averages
+```
+## The probability of `r run` runs or more in `r tosses` tosses is `r res[1]`.  So `r 1-res[1]` of the time no run of `r run` heads and/or tails observed.
+
+```{r plot3, echo=FALSE}
+grid.newpage()
+grid.newpage()
+venn.plot <- draw.pairwise.venn(area1 = res[6]+res[4], area2 = res[5]+res[4], cross.area = res[4], category = c("tails",   "heads"), 
+        fill = c("blue", "red"), 
+        lty = "blank")
+grid.draw(venn.plot)
+```
+
+\newpage 
+# Examine how many tosses are required for _x_ consecutive results in a row? We are not concerned if it is heads or tails...whichever consecutive result comes first.
+
+## Create a function
+```{r function2}
+coin <- c(0,1)
+
+ComputeNbTosses <- function(targetTosses) {
+  nbTosses <- 0 
+  nbHeadsInRow <-  0
+  nbTailsInRow <-  0
+  allTosses <-  c()
+  
+  # keep tossing unless we reach target for either heads or tails
+  while  (nbHeadsInRow < targetTosses & nbTailsInRow < targetTosses)  {
+    
+    toss = sample(coin,1,T)          # toss an unbiased coin
+    allTosses = c(allTosses, toss)   # accumulate the tosses
+    
+    # count occurrences of runs of heads and of tails
+    if (toss == 1) {nbHeadsInRow = nbHeadsInRow + 1} else {nbHeadsInRow = 0}
+    if (toss == 0) {nbTailsInRow = nbTailsInRow + 1} else {nbTailsInRow = 0}
+    
+    nbTosses = nbTosses + 1         # count the tosses
+  }
+
+  ret = list()
+  ret$nbTosses = nbTosses           # record the count of the tosses
+  # ret$allTosses = allTosses       # collect this if you want to check simulation works as expected
+  return(ret)
+  
+} 
+```
+\newpage
+## Execute function for one scenario and manage the output
+```{r exec function no 2}
+set.seed(4321)                               # reproducible result
+n <- 4                                         # number of consecutive tosses
+result <- replicate(10000, ComputeNbTosses(n)) # execute function large number of times
+```
+## Summary of results
+```{r summarise }
+summary(unlist(result))                     
+quantile( unlist(result),c(.001, .025,.1,.9,.95,.975,.99, .999))
+```
+**Therefore on average (mean) `r mean(unlist(result))` tosses are required to obtain `r n` consecutive results. It is unlikely (less than 5% of the time) that `r n` runs will require more than `r quantile( unlist(result),c(.95))` tosses.**
+
+
+
+## Perform the simulation en masse (simulate for a number of scenarios in one function)
+```{r create array for data}
+set.seed(123)   ##for a reproducible result
+I <-  c(2:10)     ##consecutive runs of interest
+nrep <- 1000    ##simulations to run on each scenario
+
+pwpr <- array(dim=c(length(I),nrep,1),
+              dimnames=list(consecutive=I , 
+                            simulation=seq(nrep),
+                            Estimate=c("mean"))
+)
+```
+## Loop
+```{r loop through the function}
+for (i in seq_along(I)) {
+      pwpr[i,,]  <- plyr::raply(nrep, 
+                     unlist(ComputeNbTosses(I[i]))[1][[1]]
+                        )
+      
+    }  
+```
+\newpage
+## Summary
+```{r manage the output}
+pwpr[,1:10,] # first 10 simulations  
+p0 <- function(x) {formatC(x, format="f", digits=0)}
+```
+## Means, rownames are the desired run of consecutive tosses and below the average number of tosses
+```{r manage the output2}
+(resmeans  <-  (apply(pwpr,c(1),mean,na.rm=TRUE) ))
+```
+## Percentiles
+```{r manage the output3}
+(resci <-  (apply(pwpr,c(1 ),
+                  quantile,c(.001, .025,.1,.25,.5,.75,.9,.95,.975,.99, .999), na.rm=TRUE)))
+``` 
+
+```{r sample a column at random, cache=FALSE, echo=FALSE, results='hide'}
+x=sample(I,1)
+```
+**Interpret one example: The median number of tosses required  for `r x` consecutive runs of a fair coin are `r resci[5,x-1]`. It is unlikely (less than 5% of the time) that to observe `r x` consecutive runs will require more than `r resci[8,x-1]` tosses.**
+
+
+# References   
+
+http://stackoverflow.com/questions/21392665/homework-simulating-coin-tosses-until-consecutive-heads-using-r  
+https://twitter.com/d_spiegel/status/544422589670916096   
+http://stats.stackexchange.com/questions/21825/probability-over-multiple-blocks-of-events  
+http://r.789695.n4.nabble.com/Plot-does-not-show-in-R-td4693637.html
+http://math.stackexchange.com/questions/364038/expected-number-of-coin-tosses-to-get-five-consecutive-heads  .5^2
+http://www.cs.cornell.edu/~ginsparg/physics/INFO295/mh.pdf  
+error on bottom of page 5, n=5 not reported  
+
+(2^(n+1))-2
+
+2*(2^n-1)
+
+http://stats.stackexchange.com/questions/91518/waiting-time-for-successive-occurrences-of-a-result-when-rolling-a-die?rq=1  
+p<-.5^n
+2*(1-p)/p
+
+http://stats.stackexchange.com/questions/12174/time-taken-to-hit-a-pattern-of-heads-and-tails-in-a-series-of-coin-tosses  
+http://stats.stackexchange.com/questions/91518/waiting-time-for-successive-occurrences-of-a-result-when-rolling-a-die?rq=1  
+http://stats.stackexchange.com/questions/126884/how-many-times-do-i-have-to-roll-a-die-to-get-six-six-times-in-a-row  
+http://math.stackexchange.com/questions/192177/how-many-times-to-roll-a-die-before-getting-two-consecutive-sixes
+
+ 
+# Computing Environment
+
+```{r, echo=FALSE}
+#opts_knit$set(root.dir = wd)   ##THIS SETS YOUR WORKING DIRECTORY
+options(width=70)
+sessionInfo()
+print(wd)
+```
+```{r echo=FALSE}
+stopTime<-proc.time()
+```
+This took `r (stopTime-startTime)[1][[1]]` seconds to execute. 
