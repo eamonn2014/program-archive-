@@ -3,15 +3,15 @@ title: "Bayesian and frequentist analysis of randomised trial adjusting for cova
 author: "Eamonn O'Brien"
 date: '`r format(Sys.time(), "%d %B, %Y")`'
 output:
-  html_document: default
   pdf_document:
     fig_caption: yes
     fig_height: 6
     fig_width: 8
     number_sections: yes
+  html_document: default
 ---
 
-### Introduction
+# Introduction
 
 Many randomised controlled trials (RCTs) are analysed in a simple manner using only the randomised treatment as the independent variable. We show when the response outcome is continuous that precision of the treatment effect estimate is improved when adjusting for baseline covariates in a randomised controlled trial. We do not expect covariates to be related to the treatment assignment because of randomisation, but they may be related to the outcome, they are therefore not considered to be confounding. However, differences between the outcome which can be attributed to differences in the covariates can be removed, this results in a more precise estimate of treatment effect. This should be considered more often as sample sizes can be reduced. This is not the case for logistic models (principle of the non collapsibility of the odds ratio).
 
@@ -87,7 +87,7 @@ Here, we perform an investigation of adjusted and unadjusted power in the settin
   
 ```            
 
-### Prepare for simulations
+#  Prepare for simulations
 
 ```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='asis' , cache=FALSE }  
  
@@ -98,7 +98,7 @@ Here, we perform an investigation of adjusted and unadjusted power in the settin
 
 ```
 
-### Function to investigate power for a RCT including a predictive biomarker contingent on the analyses perfomed (adjusted and unadjusted)
+#  Function to investigate power for a RCT including a predictive biomarker contingent on the analyses perfomed (adjusted and unadjusted)
 
 ```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='markup', cache=TRUE }   
 
@@ -160,7 +160,7 @@ Here, we perform an investigation of adjusted and unadjusted power in the settin
 ```            
 \newpage 
 
-### Plot the results
+#  Plot the results
 
 ```{r echo=TRUE, fig.cap="Profiles of power with sample size"} 
 
@@ -179,7 +179,7 @@ Here, we perform an investigation of adjusted and unadjusted power in the settin
    
 ```
 
-### Based on power estimates of adjusted analyses a trial of 150 patients takes place
+#  Based on power estimates of adjusted analyses a trial of 150 patients takes place
 
 ```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='markup' }   
    
@@ -208,7 +208,7 @@ Here, we perform an investigation of adjusted and unadjusted power in the settin
       
 ```
 
-### Prepare for analysis, create a data frame
+#  Prepare for analysis, create a data frame
 
 ```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='markup' }         
     
@@ -218,7 +218,7 @@ Here, we perform an investigation of adjusted and unadjusted power in the settin
       
 ```
 
-### Analysis, the regression table
+#  Analysis, the regression table
 
 ```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='markup' }   
       
@@ -227,7 +227,7 @@ Here, we perform an investigation of adjusted and unadjusted power in the settin
       
 ```
 
-### Compute analysis of variance table for the fitted model object with $\chi^2$ statistics. Joint tests of all interaction terms in the model are also performed.
+#  Compute analysis of variance table for the fitted model object with $\chi^2$ statistics. Joint tests of all interaction terms in the model are also performed.
 
 ```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='markup' } 
  
@@ -237,7 +237,7 @@ Here, we perform an investigation of adjusted and unadjusted power in the settin
 ```            
 \newpage 
 
-### Plot the results, show the effect of the main effect combined with all interactions involving that factor.
+#  Plot the results, show the effect of the main effect combined with all interactions involving that factor.
 
 ```{r echo=TRUE, fig.cap="The default for plot(anova()) is to display the Wald Chi2 statistic minus its degrees of freedom for assessing the partial effect of each variable. Even though this is not scaled [0,1] it is probably the best method in general because it penalizes a variable requiring a large number of parameters to achieve the Chi2. If a predictor interacts with any other predictor(s), the Chi2  and partial R2 measures combine the appropriate interaction effects with main effects. For example if the model was y ~ biomarker * treatment the statistic for treatment is the combined effects of treatment as a main effect plus the effect modification that treatment provides for the biomarker effect. This is an assessment of whether there is a difference between the treatment for any biomarker score."} 
    
@@ -253,7 +253,7 @@ Here, we perform an investigation of adjusted and unadjusted power in the settin
 
 ```      
 
-### Compute predicted values and confidence limits, specify which predictors are to vary
+#  Compute predicted values and confidence limits, specify which predictors are to vary
 
 ```{r echo=TRUE, fig.cap="Show predicted values and confidence bands"}         
       
@@ -261,7 +261,7 @@ Here, we perform an investigation of adjusted and unadjusted power in the settin
 
 ```
       
-### The key result: Compute predicted values and confidence limits, specify which predictors are to vary. The effect of the biomarker in control arm on outcome moving from 0 to 1 signature score and the treatment effect on outcome when biomarker score is fixed at the median biomarker score.
+#  The key result: Compute predicted values and confidence limits, specify which predictors are to vary. The effect of the biomarker in control arm on outcome moving from 0 to 1 signature score and the treatment effect on outcome when biomarker score is fixed at the median biomarker score.
 
 ```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='markup' }     
  
@@ -269,7 +269,7 @@ Here, we perform an investigation of adjusted and unadjusted power in the settin
       
 ```
 
-### The key result: the adjusted effect of the biomarker in the treatment arm on outcome moving from 0 to 1 signature score. The treatment effect on outcome is shown when biomarker score is fixed at the median biomarker score.
+#  The key result: the adjusted effect of the biomarker in the treatment arm on outcome moving from 0 to 1 signature score. The treatment effect on outcome is shown when biomarker score is fixed at the median biomarker score.
 
 
 ```{r echo=TRUE, fig.cap="Biomarker effect on outcome in treatment arm"}        
@@ -279,7 +279,7 @@ Here, we perform an investigation of adjusted and unadjusted power in the settin
       
 ```            
 
-### Plot the other covariate effects for information. Show sex main effect on outcome.
+#  Plot the other covariate effects for information. Show sex main effect on outcome.
 
 ```{r echo=TRUE, fig.cap="Sex main effect on outcome"}  
       
@@ -288,7 +288,7 @@ Here, we perform an investigation of adjusted and unadjusted power in the settin
       
 ```            
 
-### Show age main effect on outcome.
+#  Show age main effect on outcome.
 
 ```{r echo=TRUE, fig.cap="Age main effect on outcome"}        
       
@@ -297,7 +297,7 @@ Here, we perform an investigation of adjusted and unadjusted power in the settin
       
 ```            
 
-### Show baseline main effect on outcome. A strong relationship as expected, patients with high values of the response at baseline would be expected to have high values at the outcome of the trial. 
+#  Show baseline main effect on outcome. A strong relationship as expected, patients with high values of the response at baseline would be expected to have high values at the outcome of the trial. 
 
 ```{r echo=TRUE, fig.cap="Baseline main effect on outcome"}        
       
@@ -307,7 +307,7 @@ Here, we perform an investigation of adjusted and unadjusted power in the settin
       
 ```
 
-### Reproduce the regression table using the summary function, except showing the effect of the biomarker on outcome in control arm only
+#  Reproduce the regression table using the summary function, except showing the effect of the biomarker on outcome in control arm only
 
 ```{r echo=TRUE, fig.cap="Summary of effects"}     
              
@@ -316,7 +316,7 @@ Here, we perform an investigation of adjusted and unadjusted power in the settin
       
 ```
 
-### The effect with changing biomarker scores in the treatment arm.
+#  The effect with changing biomarker scores in the treatment arm.
 
 
 ```{r echo=TRUE, fig.cap="Summary of effects"}            
@@ -326,7 +326,7 @@ Here, we perform an investigation of adjusted and unadjusted power in the settin
       
 ```
 
-### The contrast function, match the regression table for treatment effect
+#  The contrast function, match the regression table for treatment effect
 
 ```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='markup' }        
   
@@ -336,7 +336,7 @@ Here, we perform an investigation of adjusted and unadjusted power in the settin
       
 ```
 
-### The contrast function, treatment effect when covariates held at median
+#  The contrast function, treatment effect when covariates held at median
 
 ```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='markup' }        
  
@@ -350,7 +350,7 @@ Here, we perform an investigation of adjusted and unadjusted power in the settin
 
 ```
 
-### Assumption check
+#  Assumption check
 
 ```{r echo=TRUE, fig.cap="Check OLS assumptions" }        
          
@@ -364,7 +364,7 @@ Here, we perform an investigation of adjusted and unadjusted power in the settin
          
 ```
 
-### Bayesian analysis using STAN, the model statement
+#  Bayesian analysis using STAN, the model statement
 
 ```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='markup' }     
          
@@ -383,7 +383,7 @@ Here, we perform an investigation of adjusted and unadjusted power in the settin
           
 ```
 
-### Bayesian analysis using STAN, frequentist and Bayesian results
+#  Bayesian analysis using STAN, frequentist and Bayesian results
 
 ```{r echo=FALSE, eval=TRUE, tidy=FALSE, results='markup' }           
           
@@ -393,7 +393,7 @@ Here, we perform an investigation of adjusted and unadjusted power in the settin
       
 ```
 
-### Plot the predicted effects adjusted for a specific covariate pattern. Counterfactual samples of patients are simulated and plotted. To match the frequentist prediction the Bayesian analysis is adjusted to the median values for continuous variables.
+#  Plot the predicted effects adjusted for a specific covariate pattern. Counterfactual samples of patients are simulated and plotted. To match the frequentist prediction the Bayesian analysis is adjusted to the median values for continuous variables.
 
 ```{r echo=TRUE, results='hide',   fig.cap="Predicted effects (Statistical Rethinking page 129)", fig.show='asis'}     
        
@@ -468,7 +468,7 @@ Here, we perform an investigation of adjusted and unadjusted power in the settin
       
 ```
 
-### Plot the predicted teatment effects, showing treatment effect modification with biomarker. Counterfactual samples of patients are simulated and plotted. `r paste("Adjusted to baseline ", p4(P.baseline),", age ", P.age," and sex coded ", P.sex, " female", sep="")`
+#  Plot the predicted teatment effects, showing treatment effect modification with biomarker. Counterfactual samples of patients are simulated and plotted. `r paste("Adjusted to baseline ", p4(P.baseline),", age ", P.age," and sex coded ", P.sex, " female", sep="")`
 
 ```{r echo=TRUE, fig.cap="Predicted effects (Statistical Rethinking page 129)"   }
 
@@ -491,7 +491,7 @@ Here, we perform an investigation of adjusted and unadjusted power in the settin
    
 ```
 
-### Model comparison with main effects model m2. The interaction model's (m1) weight means there is probability of 0.81 that the model will make the best predictions on new data, conditional on the set of models considered.
+#  Model comparison with main effects model m2. The interaction model's (m1) weight means there is probability of 0.81 that the model will make the best predictions on new data, conditional on the set of models considered.
 
 ```{r echo=FALSE, results='markup'}
 
@@ -513,7 +513,7 @@ Here, we perform an investigation of adjusted and unadjusted power in the settin
  
 ```
 
-### Assumption check
+#  Assumption check
 
 ```{r echo=TRUE, fig.cap="Check chains are mixing" }  
 
@@ -526,7 +526,7 @@ Here, we perform an investigation of adjusted and unadjusted power in the settin
       
 ```
 
-### For completion the effects of the other covariates
+#  For completion the effects of the other covariates
 
 ```{r echo=FALSE, results='hide',   fig.cap="Effects of covariates", fig.show='asis'}    
 
@@ -694,25 +694,25 @@ Here, we perform an investigation of adjusted and unadjusted power in the settin
 
 ```
 
-
-
-### References 
+#  References 
 
   Statistical Rethinking, Richard McElearth post treatment bias p151, WAIC p199 and simulate p129  
   http://thestatsgeek.com/2014/02/01/adjusting-for-baseline-covariates-in-randomized-controlled-trials/  
   http://egap.org/content/power-analysis-simulations-r  
+  
   http://stackoverflow.com/questions/14554558/simulate-a-linear-model-100-times  
+  
   http://stats.stackexchange.com/questions/155246/which-variable-relative-importance-method-to-use  
-      
 
 \clearpage
 \pagebreak 
 
 
-### Computing Environment
+#  Computing Environment
 
 ```{r, echo=FALSE}
 #opts_knit$set(root.dir = wd)   ##THIS SETS YOUR WORKING DIRECTORY
+options(width=70)
 sessionInfo()
 print(wd)
 ```
