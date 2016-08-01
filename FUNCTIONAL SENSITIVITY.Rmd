@@ -1,13 +1,21 @@
 ---
 title: "Functional Sensitivity"
-author: "Eamonn O'Brien "
+author: "Eamonn O'Brien"
 date: "Tuesday, May 26, 2015"
-output: html_document
+output:
+  pdf_document:
+    fig_caption: yes
+    fig_height: 4
+    fig_width: 8
+    number_sections: yes
+  html_document: default
+  word_document: default
 ---
 
-#### Program is provided which Fit 11 models to single predictor and use sum of square of residual as model selection criteria
+Program is provided which Fits 11 models to single predictor and use sum of square of residual as model selection criteria
  
 ```{r set-options, echo=FALSE, cache=FALSE, warning = FALSE}
+
 rm(list=ls())
 startTime<-proc.time()
 library(knitr)
@@ -25,14 +33,14 @@ knitr::knit_hooks$set(inline = function(x) {
 ```
 
 ```{r ,echo=FALSE}
+
 p2f <- function(x) {formatC(x, format="f", digits=4)}
-
-
 
 ```
  
  
 ```{r prerequisites, echo=FALSE}
+
 where<-"home" 
  
 path<-"DEVELOPMENT/FUNCTIONAL SENSITIVITY MODEL SELECTION"   
@@ -55,73 +63,15 @@ if (where=="home") {wd3<- nonwork3} else {wd3<-work3}
  
 setwd(wd2)
 opts_knit$set(root.dir = wd2)     ##THIS SETS YOUR WORKING DIRECTORY
-```
- 
- 
-****************** 
- 
-Load dataset1 
- 
-```{r  dataset1, echo=FALSE}
-
-require(ggplot2)
-toread <- "sample  _NAME_  COL1  COL2
-A046  conc        122.766	115.304
-A048	conc	221.714	211.704
-A049	conc	223.287	231.001
-A050	conc	276.281	290.975
-A051	conc	229.109	281.813
-A052	conc	156.985	165.255
-A054	conc	147.296	150.360
-A058	conc	87.098	74.180
-A062	conc	103.648	98.389
-A063	conc	173.321	168.583
-A069	conc	214.687	204.615
-H098	conc	195.010	224.759
-H099	conc	202.874	233.319
-H100	conc	227.235	250.898
-H101	conc	221.122	233.964
-H102	conc	256.975	256.384
-H105	conc	215.708	272.139
-H112	conc	151.172	150.507
-H113	conc	167.717	159.274
-H114	conc	165.622	157.793
-M023	conc	1.537	1.541
-M024	conc	194.695	197.779
-M025	conc	95.258	100.862
-M026	conc	10.932	11.033
-M027	conc	14.404	14.902
-M030	conc	4.521	4.530
-M031	conc	16.144	16.884
-M032	conc	96.648	90.294
-M036	conc	28.378	31.051
-M037	conc	26.629	23.187
-M038	conc	63.352	61.304
-M044	conc	41.647	43.043
-N008	conc	25.798	23.489
-N011	conc	1.907	1.705
-T079	conc	63.212	61.854
-T081	conc	95.499	95.207
-T082	conc	104.613	106.458
-T085	conc	149.441	136.205
-T086	conc	153.592	140.220
-T090	conc	184.267	197.540" 
-
-survey <- read.table(textConnection(toread), header = TRUE) 
- 
 
 ```
 
-*****************
+# Functional Sensitivity function
 
-####Functional Sensitivity function
-
-
-****************** 
 
 ```{r fsens, echo=TRUE}
 
-func.sens <- function (x, y, model, spec, print.plot) {
+func.sens <- function (x, y, model, spec, print.plot=1) {
   
 # Define models
   
@@ -290,37 +240,76 @@ func.sens <- function (x, y, model, spec, print.plot) {
 
 ```
 
-*****************
+\newpage
+ 
+# Test data 1
 
-###Execute 1
+```{r execute1, echo=TRUE, eval=TRUE}
 
+require(ggplot2)
 
-****************** 
+toread <- "sample  _NAME_  COL1  COL2
+A046  conc        122.766	115.304
+A048	conc	221.714	211.704
+A049	conc	223.287	231.001
+A050	conc	276.281	290.975
+A051	conc	229.109	281.813
+A052	conc	156.985	165.255
+A054	conc	147.296	150.360
+A058	conc	87.098	74.180
+A062	conc	103.648	98.389
+A063	conc	173.321	168.583
+A069	conc	214.687	204.615
+H098	conc	195.010	224.759
+H099	conc	202.874	233.319
+H100	conc	227.235	250.898
+H101	conc	221.122	233.964
+H102	conc	256.975	256.384
+H105	conc	215.708	272.139
+H112	conc	151.172	150.507
+H113	conc	167.717	159.274
+H114	conc	165.622	157.793
+M023	conc	1.537	1.541
+M024	conc	194.695	197.779
+M025	conc	95.258	100.862
+M026	conc	10.932	11.033
+M027	conc	14.404	14.902
+M030	conc	4.521	4.530
+M031	conc	16.144	16.884
+M032	conc	96.648	90.294
+M036	conc	28.378	31.051
+M037	conc	26.629	23.187
+M038	conc	63.352	61.304
+M044	conc	41.647	43.043
+N008	conc	25.798	23.489
+N011	conc	1.907	1.705
+T079	conc	63.212	61.854
+T081	conc	95.499	95.207
+T082	conc	104.613	106.458
+T085	conc	149.441	136.205
+T086	conc	153.592	140.220
+T090	conc	184.267	197.540" 
 
-```{r execute1, echo=FALSE, eval=FALSE}
-
+survey <- read.table(textConnection(toread), header = TRUE) 
+ 
 for (j in 1:11) {
  func.sens(x=survey$COL1, y=survey$COL2, model=j, spec=100) 
 }
 
 ```
+\newpage
 
-*****************
+# Test data 2
 
-###Execute2 made up data
-
-
-****************** 
-
-```{r execute2, echo=FALSE, eval=FALSE}
+```{r execute2, echo=TRUE, eval=TRUE}
 
     n <- 150
     x99 <- seq( from=10.001 , to=100, length.out=n)
     
-    y99 <- abs((x99)+rnorm(n,0,4 ))^.5    # spec^2
-    y99 <- abs((x99)+rnorm(n,0,4 ))^2     # spec^.5 
-    y99 <- abs((x99)+rnorm(n,0,4 ))^-1    # spec^-1
-    y99 <- abs((x99)+rnorm(n,0,4 ))^-0.1  # spec^-(1/.1) == spec^-10 [model 7]
+    #y99 <- abs((x99)+rnorm(n,0,4 ))^.5    # spec^2
+    #y99 <- abs((x99)+rnorm(n,0,4 ))^2     # spec^.5 
+    #y99 <- abs((x99)+rnorm(n,0,4 ))^-1    # spec^-1
+    #y99 <- abs((x99)+rnorm(n,0,4 ))^-0.1  # spec^-(1/.1) == spec^-10 [model 7]
     y99 <- abs((x99)+rnorm(n,0,10))       # linear
 
 
@@ -339,15 +328,13 @@ for (j in 1:11) {
   
 
 ```
-
-*****************
  
+\newpage
 
-####Execute 3rd analysis, real functional sensitivity data
+# Test data 3
 
-****************** 
 
-```{r real data , echo=FALSE, eval=FALSE}
+```{r real data , echo=TRUE, eval=TRUE}
 
 mu<-c(
   0.1208444444,
@@ -370,69 +357,23 @@ for (j in 1:11) {
 }
 
  
-```
 
-*****************
- 
+``` 
 
-####Data from Olaide Merck's IGF
-
-****************** 
-
-```{r GUSBCVData, echo=FALSE, eval=TRUE} 
-mu<-c(
-38.51102 ,
- 39.18610 ,
-38.45812 ,
-38.61669,
-38.11830 ,
-37.84692 ,
-37.22331 ,
-34.01610 ,
-31.83914 ,
-29.46602 ,
-27.13881 ,
-24.86732,
-22.43651 ,
-20.07980 ,
-17.84245 )
-
-cv<-c(
- 2.657376,
-2.616376,
-1.850624,
-2.053530,
-2.406049,
-1.751854,
-4.382053,
- 1.523211,
- 2.262422,
-2.313329,
-2.523391,
- 2.594403,
-2.949156,
-3.294918,
-3.659058)
+\clearpage
+\pagebreak 
 
 
+# <span style="color:brown"> Computing Environment</span>
 
-for (j in 1:11) {
-  func.sens(x=mu, y=cv, model=j, spec=2.5) 
-}
-
- 
-
-
-```
-
-*****************
- 
-Computing Environment
-```{r}
+```{r, echo=FALSE}
+#opts_knit$set(root.dir = wd)   ##THIS SETS YOUR WORKING DIRECTORY
+options(width=70)
 sessionInfo()
+print(wd)
 ```
 ```{r echo=FALSE}
 stopTime<-proc.time()
 ```
-
-This took `r (stopTime-startTime)[1][[1]]` seconds to execute.
+This took `r (stopTime-startTime)[1][[1]]` seconds to execute. 
+  
