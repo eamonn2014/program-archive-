@@ -12,7 +12,7 @@ output:
   word_document: default
 ---
 
-Program is provided which Fits 11 models to single predictor and use sum of square of residual as model selection criteria
+Program is provided which fits 11 models to single predictor and uses sum of square of residual as model selection criteria
  
 ```{r set-options, echo=FALSE, cache=FALSE, warning = FALSE}
 
