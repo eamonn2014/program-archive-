@@ -12,7 +12,7 @@ output:
   html_document: default
 ---
 
-### Introduction
+# Introduction
 
 Many randomised controlled trials (RCTs) are analysed in a simple manner using only the randomised treatment as the independent variable. But when the response outcome is continuous, precision of the treatment effect estimate is improved when adjusting for baseline covariates in a randomised controlled trial. We do not expect covariates to be related to the treatment assignment because of randomisation, but they may be related to the outcome, they are therefore not considered to be confounding. However, differences between the outcome which can be attributed to differences in the covariates can be removed, this results in a more precise estimate of treatment effect. This should be considered more often as sample sizes can be reduced. This is not the case for logistic models (principle of the non collapsibility of the odds ratio).
 
@@ -41,10 +41,10 @@ Here, we perform an investigation of adjusted and unadjusted power in the settin
  
         where<-"home" #this is used in the sourced program 
  
-        path <- "Documents\\GIT\\Adjusting-for-covariates-I"  
+        path <- "GIT\\programs-master"  
      
         work<-    paste("X:/", path, sep = "")
-        nonwork<- paste("~/X/", path, sep = "")
+        nonwork<- paste("~/", path, sep = "")
         if (where=="home") {wd<- nonwork} else {wd<-work}
         
         path2 <- "CUSTOMER\\SYROS\\CLIA VAIDATION RARalpha\\VACUFUGE\\DATA"  
@@ -88,7 +88,7 @@ Here, we perform an investigation of adjusted and unadjusted power in the settin
   
 ```            
 
-### Prepare for stochastic simulations
+# Prepare for stochastic simulations
 
 ```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='asis' , cache=TRUE }  
 
@@ -100,13 +100,9 @@ Here, we perform an investigation of adjusted and unadjusted power in the settin
 
 ```
 
-### Function to investigate power for a RCT contingent on the analyses perfomed (adjusted and unadjusted)
+# Function to investigate power for a RCT contingent on the analyses perfomed (adjusted and unadjusted)
 
 ```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='markup', cache=TRUE }   
-
-    
-      
-  
 
 for (j in 1:length(N)){
   
@@ -189,7 +185,7 @@ for (j in 1:length(N)){
 ```            
 \newpage 
 
-### Plot the power with sample size relationships
+# Plot the power with sample size relationships
 
 ```{r echo=TRUE, fig.cap="Profiles of power with sample size"} 
 
@@ -208,7 +204,7 @@ for (j in 1:length(N)){
 ```            
 \newpage 
 
-### Plot the percent relative bias with sample size relationships
+# Plot the percent relative bias with sample size relationships
 
 ```{r echo=TRUE, fig.cap="Profiles of percentage relative bias with sample size"} 
 
@@ -233,7 +229,7 @@ for (j in 1:length(N)){
 
 ```            
 
-### Show the % relative bias with sample size relationships
+# Show the % relative bias with sample size relationships
 
 ```{r echo=TRUE, fig.cap="Profiles of percent relative bias with sample size"}
     
@@ -247,7 +243,7 @@ for (j in 1:length(N)){
     
 ```
 
-### Based on power estimates of adjusted analyses a trial of 800 patients takes place
+# Based on power estimates of adjusted analyses a trial of 800 patients takes place
 
 ```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='markup' }   
     
@@ -289,16 +285,9 @@ for (j in 1:length(N)){
        #~~~~~~~~~~~~
        
        
-       
-       
-       
-       
-       
-       
-       
 ```
 
-### Create a data frame
+# Create a data frame
 
 ```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='markup' }         
     
@@ -307,7 +296,7 @@ for (j in 1:length(N)){
       
 ```
 
-### Bayesian analysis using STAN, the model statement
+# Bayesian analysis using STAN, the model statement
 
 ```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='hide'}     
          
@@ -350,7 +339,7 @@ for (j in 1:length(N)){
 
 ```
 
-### Bayesian analysis using STAN, frequentist and Bayesian results together
+# Bayesian analysis using STAN, frequentist and Bayesian results together
 
 ```{r echo=FALSE, eval=TRUE, tidy=FALSE, results='markup' }           
           
@@ -360,7 +349,7 @@ for (j in 1:length(N)){
 ```
 
 
-### Model assumption check
+# Model assumption check
 
 ```{r echo=TRUE, fig.cap="Check chains are mixing" }  
 
@@ -374,8 +363,8 @@ for (j in 1:length(N)){
     plot(m1)
     
 ```
-### Plot the predicted effects, counterfactual samples of 100 patients are also simulated and plotted.   
-### Treatment effect
+# Plot the predicted effects, counterfactual samples of 100 patients are also simulated and plotted.   
+# Treatment effect
 
 
 ```{r echo=TRUE, results='hide', fig.cap="Effects of treatment on outcome, simulated response outcomes left panel, mean response right panel", fig.show='asis'}   
@@ -386,7 +375,7 @@ for (j in 1:length(N)){
         namez <- "Treatment"
         x <- c(rep(0,nn/2) , rep(1, nn/2))
         
-        pred.data1 <- data.frame(                            # Make predictions for this dataset
+        pred.data1 <- data.frame(    # Make predictions for this dataset
              treat= x                                 
         )
               
@@ -434,7 +423,7 @@ for (j in 1:length(N)){
 
 ```        
 
-### Adjusted analysis
+# Adjusted analysis
    
         
 ```{r echo=TRUE, results='hide', fig.cap="Effects of treatment on outcome, simulated response outcomes left panel, mean response right panel", fig.show='asis'}   
@@ -506,7 +495,7 @@ for (j in 1:length(N)){
 
 ```
 
-### For completion the effects of the other covariates on outcome; age
+# For completion the effects of the other covariates on outcome; age
 
 ```{r echo=FALSE, results='hide',   fig.cap="Effects of age on outcome, simulated response outcomes left panel, mean response right panel", fig.show='asis'}    
 
@@ -568,7 +557,7 @@ for (j in 1:length(N)){
       
 ```
 
-### Baseline effect on outcome
+# Baseline effect on outcome
 
 ```{r echo=FALSE, results='hide',   fig.cap="Effects of baseline on outcome, simulated response outcomes left panel, mean response right panel", fig.show='asis'}    
    
@@ -622,7 +611,7 @@ for (j in 1:length(N)){
 
 ```
 
-### Effect on outcome; sex. There is no real need to show treatment as well, as no interaction was modelled.
+# Effect on outcome; sex. There is no real need to show treatment as well, as no interaction was modelled.
 
 ```{r echo=FALSE, results='hide',   fig.cap="Effects of sex on outcome, simulated response outcomes top panels, mean response bottom", fig.show='asis'} 
      
@@ -734,7 +723,7 @@ for (j in 1:length(N)){
 
 ```              
 
-### Frequentist analysis, print the regression table (also print Bayesian)
+# Frequentist analysis, print the regression table (also print Bayesian)
 
 ```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='markup' }   
       
@@ -744,7 +733,7 @@ for (j in 1:length(N)){
       
 ```
 
-### Compute analysis of variance table for the fitted model object with $\chi^2$ statistics.  
+# Compute analysis of variance table for the fitted model object with $\chi^2$ statistics.  
 
 ```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='markup' } 
  
@@ -754,7 +743,7 @@ for (j in 1:length(N)){
 ```            
 \newpage 
 
-### Plot the partial effect of each variable.
+# Plot the partial effect of each variable.
 
 ```{r echo=TRUE, fig.cap="The default for plot(anova()) is to display the Wald Chi2 statistic minus its degrees of freedom for assessing the partial effect of each variable. Even though this is not scaled [0,1] it is probably the best method in general because it penalizes a variable requiring a large number of parameters to achieve the Chi2. If a predictor interacts with any other predictor(s), the Chi2  and partial R2 measures combine the appropriate interaction effects with main effects. For example if the model was y ~ biomarker * treatment the statistic for treatment is the combined effects of treatment as a main effect plus the effect modification that treatment provides for the biomarker effect. This is an assessment of whether there is a difference between the treatment for any biomarker score."} 
    
@@ -775,7 +764,7 @@ for (j in 1:length(N)){
 
 ```      
 
-### Compute predicted values and confidence limits 
+# Compute predicted values and confidence limits 
 
 ```{r echo=TRUE, fig.cap="Show predicted values and confidence bands"}         
       
@@ -783,7 +772,7 @@ for (j in 1:length(N)){
 
 ```
       
-### The key result, computed predicted values and confidence limits for the treatment effect on outcome. Notice the larger SE for the unadjusted analysis.
+# The key result, computed predicted values and confidence limits for the treatment effect on outcome. Notice the larger SE for the unadjusted analysis.
 
 ```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='markup' }     
  
@@ -799,7 +788,7 @@ for (j in 1:length(N)){
       
 ```            
 
-### Plot the other covariate effects for information. Sex main effect on outcome.
+# Plot the other covariate effects for information. Sex main effect on outcome.
 
 ```{r echo=TRUE, fig.cap="Sex main effect on outcome"}  
       
@@ -808,7 +797,7 @@ for (j in 1:length(N)){
       
 ```            
 
-### Show age main effect on outcome.
+# Show age main effect on outcome.
 
 ```{r echo=TRUE, fig.cap="Age main effect on outcome"}        
       
@@ -817,7 +806,7 @@ for (j in 1:length(N)){
       
 ```            
 
-### Show baseline main effect on outcome.  
+# Show baseline main effect on outcome.  
 
 ```{r echo=TRUE, fig.cap="Baseline main effect on outcome"}        
       
@@ -827,7 +816,7 @@ for (j in 1:length(N)){
       
 ```
 
-### Reproduce the regression table using the summary function
+# Reproduce the regression table using the summary function
 
 ```{r echo=TRUE, fig.cap="Summary of effects"}     
              
@@ -835,7 +824,7 @@ for (j in 1:length(N)){
        
 ```
 
-### The contrast function, match the regression table for treatment effect
+# The contrast function, match the regression table for treatment effect
 
 ```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='markup' }        
   
@@ -845,7 +834,7 @@ for (j in 1:length(N)){
       
 ```
 
-### The contrast function, treatment effect when covariates held at median, however this does not matter as there is no interaction in the model
+# The contrast function, treatment effect when covariates held at median, however this does not matter as there is no interaction in the model
 
 ```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='markup' }        
  
@@ -859,7 +848,7 @@ for (j in 1:length(N)){
 
 ```
 
-### Assumption check
+# Assumption check
 
 ```{r echo=TRUE, fig.cap="Check OLS assumptions" }        
          
@@ -875,7 +864,7 @@ for (j in 1:length(N)){
 
 ```
 
-### References 
+# References 
 
   Statistical Rethinking 1st Edition, Richard McElearth post treatment bias p151, WAIC p199 and simulate p129  
   http://thestatsgeek.com/2014/02/01/adjusting-for-baseline-covariates-in-randomized-controlled-trials/  
@@ -887,10 +876,11 @@ for (j in 1:length(N)){
 \pagebreak 
 
 
-### Computing Environment
+# Computing Environment
 
 ```{r, echo=FALSE}
 #opts_knit$set(root.dir = wd)   ##THIS SETS YOUR WORKING DIRECTORY
+options(width=70)
 sessionInfo()
 print(wd)
 ```
