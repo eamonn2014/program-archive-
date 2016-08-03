@@ -660,7 +660,7 @@ cat("model{
   
 ```
 
-\pagebreak 
+\pagebreak  
 
 ##Posterior estimates (proper prior)
  
