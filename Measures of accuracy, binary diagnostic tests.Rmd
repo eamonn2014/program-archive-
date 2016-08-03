@@ -1,0 +1,799 @@
+---
+title: "Measures of accuracy, binary diagnostic tests"
+author: " "
+date: "Saturday, Nov 07, 2015"
+output:
+  pdf_document:
+    fig_caption: yes
+    fig_height: 4
+    fig_width: 8
+    number_sections: yes
+  html_document: default
+  word_document: default
+---
+
+
+
+# <span style="color:blue">Introduction </span>
+
+#<span style="color:black">Basic measures of diagnostic accuracy are calculated and presented using frequentist and Bayesian approaches.</span>
+
+# <span style="color:black">Note in the example below, 'ppv' and 'npv' are estimated from the data. The Bayesian 'ppv2' and 'npv2' estimates are based on a user defined prevalence designed to mimic the observed prevalence. </span>
+
+# <span style="color:black">When calculating positive predictive value and negative predictive value measures for a user defined prevalence, the frequentist approach employed here uses a prior point estimate whilst the Bayesian approach uses a prior distribution. The user defined prevalence point estimate is 'prev.2' and the respective conditional probabilities 'ppv3' and 'npv3'. Compare the confidence intervals provided by the frequentist and Bayesian approaches. </span>
+
+# <span style="color:black">"In an effort to introduce the least possible amount of external information into a Bayesian analysis, improper densities sometimes are used as priors. This must be done with great care. Using a proper prior guarantees that the posterior also will be proper, but an improper prior may produce an improper posterior. If the posterior density is improper, it doesn't exist, so no valid inference can come out of it. Thus,if you choose to use an improper prior, you must verify that the resulting posterior is proper" p73, also see page 78 'Applied Bayesian Statistics With R and OpenBUGS Examples'.  </span>
+
+\pagebreak
+
+# <span style="color:black">"An improper prior implies that the Bayesian and conventional analyses will provide very similar estimates and standard errors. Note that an improper prior can be used if there are no cells with a zero count, and if some of the cells have zero counts, a uniform prior may be used when very little prior information is available." p180 Advanced Bayesian Methods for Medical Test Accuracy. "...because it would result in an improper posterior density when the cell frequencies are zero. For 'small' p (=0.01 and 0.05), some of the cell frequencies are in fact zero, thus, a uniform prior was employed instead..." p324. </span>
+
+# <span style="color:black">"...When the sample size is 'small' the posterior analysis with a uniform prior will differ from that with an improper prior..." p61 Bayesian Methods in Epidemiology, see p65 section 2.5 also... </span>
+
+# <span style="color:black">If there are zeros in the data the improper prior Bayesian model below will fail and the program will not complete. </span>
+
+# <span style="color:black">Note, OpenBUGS software needs to be installed on your computer. </span>
+\pagebreak
+
+# <span style="color:blue"> Definitions </span>
+
+## <span style="color:blue">Sensitivity is the proportion of true positives that are correctly identified by the test.</span>
+
+## <span style="color:blue">Specificity is the proportion of true negatives that are correctly identified by the test.</span>
+
+## <span style="color:blue">The positive predictive value (PPV) is the proportion of patients with positive test results who are correctly diagnosed. (Given a positive test, the PPV is the probability of disease).</span>
+
+## <span style="color:blue">The negative predictive value (NPV) is the proportion of patients with negative test results who are correctly diagnosed. (Given a negative test, the NPV is the probability of no disease) </span>
+
+##  <span style="color:blue">The likelihood ratio for a positive result tells you how much the odds of the disease increase when a test is positive.</span>
+
+##  <span style="color:blue">The likelihood ratio for a negative result tells you how much the odds of the disease decrease when a test is negative.</span>
+
+## <span style="color:black">The prevalence is the unconditional probability of disease in the population of interest. That is the probability that a randomly chosen individual from the population of interest is diseased. It is informative to compare the prevalence with the PPV and 1-prevalence with the NPV to see how the probabilities change before and after diagnostic testing. The likelihood ratios are independent of prevalence. PPV and NPV are dependent on the prevalence.</span>
+
+\pagebreak
+
+#Set up Rmarkdown environment
+
+```{r set-options, echo=TRUE, cache=FALSE, warning = FALSE}
+
+      rm(list=ls())
+      startTime<-proc.time()
+      library(knitr)
+      options(width=120)
+      opts_chunk$set(comment = "", warning = FALSE, message = FALSE,
+               echo = FALSE, tidy = FALSE, size="tiny",  cache=FALSE,
+               progress=TRUE,
+               cache.path = 'program_Cache/',
+               fig.path='figure/')
+
+      knitr::knit_hooks$set(inline = function(x) {
+      knitr:::format_sci(x, 'md')
+})
+
+```
+
+ 
+ 
+```{r prerequisites }
+
+      where<-"home" 
+  
+      path<-"\\R SCRIPTS\\USEFUL CODE"
+ 
+      path2<-path 
+
+      work<-    paste("X:/", path, sep = "")
+      nonwork<- paste("~/", path, sep = "")
+ 
+      if (where=="home") {wd<- nonwork} else {wd<-work}
+ 
+      work2<-    paste("X:/", path2, sep = "")
+      nonwork2<- paste("~/", path2, sep = "")
+  
+      if (where=="home") {wd2<- nonwork2} else {wd2<-work2}
+ 
+      work3<-    paste("X:/FUNCTIONS/R", sep = "")
+      nonwork3<- paste("~/FUNCTIONS/R", sep = "")
+ 
+      if (where=="home") {wd3<- nonwork3} else {wd3<-work3}
+ 
+      setwd(wd)
+      opts_knit$set(root.dir = wd)   ##THIS SETS YOUR WORKING DIRECTORY
+
+```
+ 
+  
+
+#R packages and rounding functions
+
+```{r  Packages and rounding function, echo=TRUE, results='hide' }
+
+      list.of.packages <- c("binom" ,"Hmisc","epitools","R2OpenBUGS","knitr","xtable","LearnBayes")
+
+      new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+      
+      if(length(new.packages)) install.packages(new.packages)
+      
+      sapply(X = list.of.packages, require, character.only = TRUE)
+       
+      #rounding functions
+      
+      p1x <- function(x) {print(formatC(x, format="f", digits=1),quote=FALSE)}
+      p2x <- function(x) {print(formatC(x, format="f", digits=2),quote=FALSE)}
+      p3x <- function(x) {print(formatC(x, format="f", digits=3),quote=FALSE)}
+      p4x <- function(x) {print(formatC(x, format="f", digits=4),quote=FALSE)}
+      p5x <- function(x) {print(formatC(x, format="f", digits=5),quote=FALSE)}
+      
+      #not used: but perhaps help colour plot text based on loop count
+      
+      is.even <- function(x){ x %% 2 == 0 } 
+
+```
+
+
+
+#Data, a number of different data sets are presented.
+
+```{r data , echo=TRUE }
+
+   set.seed(123)   #Reproducible results
+   n.sims <- 10000 #No of Monte Carlo simulations for frequentist confidence intervals
+   prev.2 <- 0.2   #User defined prevalence, see estimates of PPV and NPV: 'ppv3' and 'npv3'
+   
+   #157/308 disease free and 32/52 diseased have positive test results
+   
+#    a00=151  
+#    a01=20
+#    a10=157 
+#    a11=32 
+
+   #95/156 disease free and 27/35 diseased have positive test results 
+   
+#    a00=61  
+#    a01=8
+#    a10=95
+#    a11=27   
+   
+   #Bayesian Methods in Epidemiology p284
+   #Advanced Bayesian Methods for Medical Test Accuracy p51
+   #115/442 disease free and 818/1026 diseased have positive test results 
+   
+#    a00=327
+#    a01=208
+#    a10=115
+#    a11=818 
+     
+   #STATISTICS WITH CONFIDENCE Altman 200 p109...
+   #16/80 disease free and 36/40 diseased have positive test results
+ 
+#    a00=64  
+#    a01=4
+#    a10=16 
+#    a11=36 
+   
+   #Bayesian Methods in Epidemiology table 7.25
+   #2908/73113 disease free and 262/287 diseased have positive test results 
+   
+#    a00=70205
+#    a01=25
+#    a10=2908
+#    a11=262 
+   
+   #Bayesian Methods in Epidemiology table 7.26
+   #3216/70332 disease free and 76/117 diseased have positive test results 
+   
+#    a00=67116
+#    a01=41
+#    a10=3216
+#    a11=76 
+   
+   #Make up some data with low count in cells to see performance
+
+#    a00=64  
+#    a01=1
+#    a10=16 
+#    a11=36  
+   
+   #breast mammogram data, http://theincidentaleconomist.com/wordpress/healthcare-triage-bayes-theorem/
+   
+#    a00=127344  
+#    a01=118
+#    a10=13212
+#    a11=610  
+   
+    #http://jco.ascopubs.org/content/29/35/4620.full.pdf
+    #Development and Independent Validation of a Prognostic Assay for Stage II Colon Cancer Using Formalin-Fixed Paraffin-Embedded Tissue. Reconstructed from the 'validation set' data in table 1.
+   
+    N1<-59 ## true positives
+    S1<-33 ## positive calls 
+    N2<-85 ## true negatives
+    S2<-61 ## negative calls
+   
+    a00=S2  
+    a01=N1-S1
+    a10=N2-S2
+    a11=S1  
+ 
+    
+```
+
+
+
+#Contingency Table
+
+
+```{r contingency table , echo=TRUE, results='markup'}
+ 
+  t2 <- matrix(c(a00,a10,a01,a11 ),ncol=2,byrow=FALSE)
+  colnames(t2) <- c("No Dis","Dis")
+  rownames(t2) <- c("-ve","+ve") 
+  
+  t2 <- as.table(t2)
+  
+  df <- expand.table(t2)
+  tb <- with(df,table(Var2, Var1  ))
+  dd <- addmargins(tb, FUN = list(Total = sum), quiet = TRUE)
+  
+  kable(dd, digits=2)
+  
+  
+```
+
+
+
+\pagebreak
+
+#<span style="color:blue"> Frequentist: Measures of Diagnostic Accuracy </span>
+    
+
+##Population prevalence estimate from the sample
+
+
+```{r prev sample , echo=FALSE, results='markup'}
+ 
+  binom.confint( a11+a01, a00+a01+a10+a11 ,method="wilson")
+
+```
+
+
+
+##Sensitivity and CI
+
+
+```{r Sensitivity and CI , echo=FALSE, results='markup'}
+ 
+  (tmp<-binom.confint(a11, a11+a01, method="wilson"))
+  f.se<-(as.vector(unlist(tmp[,4:6])))   #store for later
+  
+
+```
+
+
+
+##Specificity and CI
+
+```{r Specificity and CI , echo=FALSE, results='markup'}
+  
+  (tmp<-binom.confint(a00,a00+a10, method="wilson"))
+  f.sp<-(as.vector(unlist(tmp[,4:6])))   #store for later
+ 
+
+```
+
+
+##PPV and CI based on prevalence in data
+
+```{r ppv and CI , echo=FALSE, results='markup'}
+  
+  (tmp<-binom.confint(a11,a10+a11, method="wilson"))
+  f.ppv<-(as.vector(unlist(tmp[,4:6])))   #store for later
+
+   
+```
+
+
+
+##NPV and CI based on prevalence in data
+
+```{r npv and CI , echo=FALSE, results='markup'}
+  
+  (tmp<-binom.confint(a00,a00+a01, method="wilson"))
+  f.npv<-(as.vector(unlist(tmp[,4:6])))   #store for later
+
+
+```
+
+
+
+## <span style="color:black">Positive likelihood ratio; 'probability of positive test in those with disease'/'probability of positive test in those without disease' </span>
+
+```{r pos Likelihood ratio , echo=TRUE, results='markup'}
+
+  sens <- (a11)/(a11+a01)
+  spec <- (a00)/(a00+a10)
+
+  p4x(sens/(1-spec))
+
+
+```
+
+
+
+##<span style="color:black">Negative likelihood ratio; 'probability of negative test in those with disease'/'probability of negative test in those without disease' </span>
+
+```{r neg Likelihood ratio , echo=TRUE, results='markup'}
+ 
+  p4x((1-sens)/(spec))
+
+```
+
+##Positive likelihood ratio alternative approach, the odds of disease post positive test, divided by the odds of disease  prior to testing.
+ 
+```{r pos2 Likelihood ratio , echo=TRUE, results='markup'}
+ 
+  (pre.test.odds<-(a01+a11 )/ (a00+a10 )) #marginal
+  (post.test.odds<-(a11)/(a10))           #given pos result
+  (LRpos<-post.test.odds/pre.test.odds)
+ 
+```
+
+##The test is positive about `r (LRpos)` times more often among the diseased, compared to those without disease.
+
+
+```{r} 
+ 
+```
+
+
+
+##Negative likelihood ratio alternative approach, that is, the odds of disease post negative test, divided by those prior to testing. It is important to note that likelihood ratios always refer to the likelihood of having disease; the positive and negative designation simply refers to the test result. Hence the interpretation of the post-test odds is always a likelihood of having disease.  
+ 
+```{r neg2 Likelihood ratio , echo=TRUE, results='markup'}
+ 
+ 
+  (post.test.odds<-(a01)/(a00)) #given neg result
+  (LRneg<- post.test.odds/pre.test.odds)
+ 
+```
+
+##On the other hand  among those who have the disease, the test is negative `r (LRneg)` times less often compared to those without the disease.
+
+ 
+##Confidence intervals for likelihood ratios (care required for se calculation), positive
+
+```{r LRp cis,  echo=TRUE, results='markup'}  
+  
+    (dlr<-sens/(1-spec))
+    (dlr<-((a11)/(a11+a01)) / ((a10)/(a00+a10)))
+    
+    one <-  1/a11
+    two <-  1/(a11+a01)
+    three <-1/a10
+    four <- 1/(a00+a10)
+    
+    log.se<- sqrt(one - two + three - four)
+    (plr.ci<-exp(log(dlr)+(c(-1,1)*(1.96*(log.se)))))
+
+```
+
+##Negative likelihood ratio 95% confidence interval
+
+```{r LRn cis,  echo=TRUE, results='markup'}    
+  
+    (dlr<-(1-sens)/(spec))
+    (dlr<-((a01)/(a11+a01)) / ((a00)/(a00+a10)))
+    
+    one <-  1/a01
+    two <-  1/(a11+a01)
+    three <-1/a00
+    four <- 1/(a00+a10)
+    
+    log.se<- sqrt(one - two + three - four) 
+    (nlr.ci<-exp(log(dlr)+(c(-1,1)*(1.96*(log.se)))))
+
+  
+```
+
+##Predicted values based on user defined prevalence  
+ 
+```{r prev , echo=TRUE, results='markup'}
+ 
+  #prev<-(a11+a01) / a00+a01+a10+a11  #estimate of prevalence from sample
+  prev<-prev.2
+  false_neg <- 1-sens 
+  false_pos <- 1-spec
+  
+```
+ 
+##Positive predicted value point estimate based on user defined prevalence of `r prev`
+ 
+```{r prev1  , echo=TRUE, results='markup'}  
+  
+   (f.ppv2<-(sens*prev ) / ((sens*prev)+(false_pos*(1-prev))))
+  
+
+```
+ 
+##Negative predicted value point estimate based on user defined prevalence of `r prev`
+ 
+```{r prev2  , echo=TRUE, results='markup'}
+  
+   (f.npv2<- (spec*(1-prev) / ((spec*(1-prev))+(false_neg*prev))))
+  
+
+```
+ 
+##Obtain confidence intervals for PPV and NPV. Simulate proportion of positives using observed sensitivity and diseased sample. Similarily simulate proportion of negatives using observed specificity and non diseased sample.
+
+ 
+```{r prev sim, echo=TRUE}
+ 
+  m1  <- rbinom (n.sims,  (a01+a11),  (a11) / (a01+a11) )
+  m2  <- rbinom (n.sims,  (a00+a10),  (a00) / (a00+a10) ) 
+
+```
+##For each simulation generate a PPV and NPV and obtain 0.025 and 0.975 percentiles 
+ 
+```{r ppv npv, echo=TRUE}
+ 
+  sens <- m1/(a11+a01)
+  spec <- m2/(a00+a10)
+  false_neg <- 1-sens 
+  false_pos <- 1-spec 
+  p1<-(sens*prev)/((sens*prev)+(false_pos*(1-prev)))
+  n1<-(spec*(1-prev))/((spec*(1-prev))+(false_neg*prev))
+   
+```
+ 
+##PPV 0.025 and 0.975 percentiles based on user defined prevalence of `r prev`
+ 
+```{r ppv ci, echo=TRUE}
+  
+  (f.ppv.ci<- (quantile (p1, c(.025, .975))))
+  
+```
+ 
+##NPV 0.025 and 0.975 percentiles based on user defined prevalence of `r prev`
+ 
+```{r npv ci, echo=TRUE}
+  
+
+  (f.npv.ci<- (quantile (n1, c(.025, .975))))
+  
+  par(mfrow=c(1,2))
+  hist(p1, main="ppv distribution", xlab="probability")
+  hist(n1, main="npv distribution", xlab="probability")
+  par(mfrow=c(1,1)) 
+
+
+```
+\pagebreak 
+ 
+#<span style="color:blue"> Bayesian: Measures of Diagnostic Accuracy  </span>
+ 
+```{r bayesian, echo=TRUE}
+ 
+```
+ 
+##For the Bayesian example, 'ppv' and 'npv' are estimated from the data. 'ppv2' and 'npv2' are alternative estimates of the same estimands, but using a beta prior 'beta(a, b)' for the prevalence distribution which attempts to mimic the population prevalence calculated from the sample. 'ppv3' and 'npv3' are further alternative estimates, but this time based on a sample size of 100 and using a user defined prevalence distribution 'beta(a2, b2)' distinct from that observed in the sample. (Note, 'ppv2' and 'npv2' are only to be found in the Bayesian analysis.)
+ 
+```{r beta for prevalence, echo=TRUE}
+    
+      (foo<-binom.confint( a11+a01, a00+a01+a10+a11 ,method="wilson"))
+  
+#     coded out as sometimes the beta.select function throws an error    
+#
+#     quantile1=list(p=.025, x=foo$lower)      # the 2.5% quantile  
+#     quantile2=list(p=.975, x=foo$upper)      # the 97.5% quantile  
+#     a<-beta.select(quantile1, quantile2)[1]
+#     b<-beta.select(quantile1, quantile2)[2]
+#     qbeta(c(.025, .975),a,b)
+#     foo
+   
+    a<-a11+a01  ## idea here is use the prevalence in the observed sample, a/(a+b)
+    b<-a00+a10  ## remember, the mean of beta dist is a/(a+b) 
+    qbeta(c(.025, .975), a, b)
+    
+     
+    a2<- prev.2*100  ##a defined prevalence as a fraction, so N=100 
+    b2<- 100-a2
+    qbeta(c(.025, .975), a2, b2)
+
+```
+ 
+
+\pagebreak
+     
+##Plot beta distribution(s) (code from R documentation help file)
+ 
+```{r plot beta, echo=TRUE}
+    
+      pl.beta <- function(a,b, asp = if(isLim) 1, ylim = if(isLim) c(0,1.1)) {
+      if(isLim <- a == 0 || b == 0 || a == Inf || b == Inf) {
+      eps <- 1e-10
+      x <- c(0, eps, (1:7)/16, 1/2+c(-eps,0,eps), (9:15)/16, 1-eps, 1)
+    } else {
+      x <- seq(0, 1, length = 1025)
+    }
+      fx <- cbind(dbeta(x, a,b), pbeta(x, a,b), qbeta(x, a,b))
+      f <- fx; f[fx == Inf] <- 1e100
+   
+      matplot(x, f, ylab="", type="l", ylim=ylim, asp=asp,
+            main = sprintf("[dpq]beta(x, a=%g, b=%g)", a,b))
+      abline(0,1,     col="gray", lty=3)
+      abline(h = 0:1, col="gray", lty=3)
+      legend("topright", paste0(c("d","p","q"), "beta(x, a,b)"),
+             col=1:3, lty=1:3, bty = "n")
+      invisible(cbind(x, fx))
+    }
+
+      pl.beta(a,b)
+      pl.beta(a2,b2)
+    
+```
+
+
+\pagebreak 
+      
+##Bayesian Model (see Lyle D. Broemeling references)
+ 
+```{r baysian model, echo=TRUE}
+  
+cat("model{
+      
+      # Dirichlet distribution for cell probabilities
+
+      g00~dgamma(a00,2)
+      g01~dgamma(a01,2)
+      g10~dgamma(a10,2)
+      g11~dgamma(a11,2)
+      
+      h<-g00+g01+g10+g11
+     
+      # the theta have a Dirichlet distribution
+
+      theta00<-g00/h
+      theta01<-g01/h
+      theta10<-g10/h
+      theta11<-g11/h
+     
+      # calculation of basic test accuracy statistics
+
+      tpf<-theta11/(theta11+theta01)
+      se<-tpf
+      sp<-1-fpf
+      fpf<-theta10/(theta10+theta00)
+      tnf<-theta00/(theta00+theta10)
+      fnf<-theta01/(theta01+theta11)
+      ppv<-theta11/(theta10+theta11)
+      npv<-theta00/(theta00+theta01)
+      pdlr<-tpf/fpf
+      ndlr<-fnf/tnf
+ 
+     # user defined prevalence
+     # p is a distribution of a prevalence of interest rather than a point estimate  
+
+     p ~ dbeta(a,b) 
+
+     false_neg <- 1-se
+     false_pos <- 1-sp 
+     
+     ppv2<- ( se*p )    / ( (se*p) + (false_pos*(1-p) ) ) 
+     npv2<- ( sp*(1-p ) / ( (sp*(1-p)) + (false_neg*p )) )
+
+     ### another prevalence distribution to estimate the predictive values
+
+     p3 ~ dbeta(a2,b2) 
+
+     ppv3<- ( se*p3 )    / ( (se*p3) + (false_pos*(1-p3) ) ) 
+     npv3<- ( sp*(1-p3 ) / ( (sp*(1-p3)) + (false_neg*p3 )) )
+
+} ", file="model.txt")
+
+```
+ 
+
+     
+##The data. By adding a one to each cell, one is in effect assuming a uniform prior for the cell probabilities. The data includes objects 'a' and 'b' for a prevalence distribution so that PPV and NPV can be estimated assuming a different prevalence. Included also are 'a2' and 'b2' for a prevalence distribution, so that PPV and NPV can be estimated assuming a different prevalence. 
+ 
+```{r data, echo=TRUE}
+      
+  ad<-0   #improper ad=0, uniform (proper) ad=1
+  data<-  list( a00=a00+ad, a01=a01+ad, a10=a10+ad, a11=a11+ad, a=a, b=b ,a2=a2, b2=b2 )
+   
+```
+ 
+##Initial values for MCMC and number of chains
+ 
+```{r initial, echo=TRUE}
+
+  chains=3
+  u1<-1.0 
+  u2<-0.5
+  u3<-0.1        
+      
+  user.initial  <- list( 
+    
+      list( g00=u1,g01=u1,g10=u1,g11=u1),
+      
+      list( g00=u2,g01=u2,g10=u2,g11=u2),
+      
+      list( g00=u3,g01=u3,g10=u3,g11=u3) 
+    )
+
+```
+ 
+##Parameters to monitor and collect
+ 
+```{r param, echo=TRUE}
+  
+  parz =  c("se","sp","tpf","fpf","ppv","npv","ppv2","npv2","pdlr","ndlr","ppv3","npv3")
+  
+```
+ 
+##Execute analysis, supply iterations and burn in...
+ 
+```{r execute bayesian, echo=TRUE}
+  
+  T <- 55000
+  B <- 5000
+
+  res <- bugs(data, inits=user.initial , parameters.to.save=parz,
+            model="model.txt", n.chains=chains,
+            n.iter=T, n.burnin=B, n.thin=1,
+            debug=F, DIC=FALSE, bugs.seed=2, codaPkg=F)
+  
+```
+ 
+##Re-execute analysis using different prior...
+ 
+```{r execute bayesian1, echo=TRUE}  
+  
+  ad<-1   #improper ad=0, uniform ad=1
+  data<-  list( a00=a00+ad, a01=a01+ad, a10=a10+ad, a11=a11+ad, a=a, b=b ,a2=a2, b2=b2 )
+
+  res1 <- bugs(data, inits=user.initial , parameters.to.save=parz,
+            model="model.txt", n.chains=chains,
+            n.iter=T, n.burnin=B, n.thin=1,
+            debug=F, DIC=FALSE, bugs.seed=2, codaPkg=F)
+  
+```
+
+\pagebreak 
+
+##Posterior estimates (proper prior)
+ 
+```{r posterior, echo=TRUE}
+  
+  print(res1, digits=5)
+ 
+  
+```
+ 
+##Posterior estimates (improper prior)
+ 
+```{r posterior1, echo=TRUE}
+  
+  print(res ,digits=5)
+ 
+```
+
+##Compare with frequentist estimates. Notice the ppv3 and npv3 confidence intervals are wider with the Bayesian approach, due to the fact the Bayesian prior prevalence is supplied as a distribution.
+ 
+```{r freq estimates, echo=FALSE, results='hide'}
+  
+  
+  res2<-rbind( se=p5x(f.se) , sp=p5x(f.sp) ,  ppv=p5x(f.ppv), npv=p5x(f.npv) , 
+        LRpos=c(p5x(LRpos), p5x(plr.ci)),LRneg=c(p5x(LRneg), p5x(nlr.ci)),
+        ppv3=c(p5x(f.ppv2), p5x(f.ppv.ci)), npv3=c(p5x(f.npv2), p5x(f.npv.ci))
+        ) 
+
+```
+
+```{r freq estimates2, echo=FALSE}
+  
+  print(res2, digits=5, quote = FALSE)
+ 
+```
+ 
+##Posterior density and MCMC chains, improper prior
+ 
+```{r posterior density, echo=TRUE}
+  
+  J<- dimnames(res$sims.array)[[3]] 
+  k<- length(J) 
+
+for (i in 1:k) {  
+   
+    par(mfrow=c(1,2))
+  
+    f<-as.vector(res$sims.array[, , J[i]])   
+  
+    plot(density(f),  main=J[i], xlab="")
+   
+    x<-rainbow(chains)
+    
+    plot(res$sims.array[,1, i], col=x[1],  type = "l", main=J[i],
+         ylim=c(min(f)*.99,max(f)*1.01), ylab=J[i])
+     
+   ## add the remaining chains
+   for (ch in 2:(chains)) {
+     lines(res$sims.array[,ch, i], col=x[ch] )
+   }  
+    
+     par(mfrow=c(1,1)) 
+   } 
+
+
+```
+
+##Posterior density and MCMC chains, proper prior
+ 
+```{r posterior density2, echo=TRUE}
+  
+  J<- dimnames(res1$sims.array)[[3]] 
+  k<- length(J) 
+
+for (i in 1:k) {  
+   
+    par(mfrow=c(1,2))
+  
+    f<-as.vector(res1$sims.array[, , J[i]])   
+  
+    plot(density(f),  main=J[i], xlab="")
+   
+    x<-rainbow(chains)
+    
+    plot(res1$sims.array[,1, i], col=x[1],  type = "l", main=J[i],
+         ylim=c(min(f)*.99,max(f)*1.01), ylab=J[i])
+     
+   # add the remaining chains
+   for (ch in 2:(chains)) {
+     lines(res1$sims.array[,ch, i], col=x[ch] )
+   }  
+    
+     par(mfrow=c(1,1)) 
+   } 
+
+
+```
+
+#References
+
+Statistics with Confidence Altman p109 for LR confidence intervals  
+
+Bayesian methods in Epidemiology, Lyle D. Broemeling  
+
+Advanced Bayesian Methods for Medical Test Accuracy, Lyle D. Broemeling  
+
+Applied Bayesian Statistics With R and OpenBUGS Examples
+
+http://www.australianprescriber.com/magazine/26/5/111/13/  
+
+OpenBUGS ERROR 'NIL dereference (read)' solved by turning DIC off:
+http://mathstat.helsinki.fi/openbugs/Manuals/TipsTroubleshooting.html  
+
+Warnings:  
+
+http://stats.stackexchange.com/questions/178117/what-happens-with-sensitivity-and-specificity-after-a-second-test/178145#178145
+ 
+http://stats.stackexchange.com/questions/67027/combining-sensitivity-and-specificity-to-measure-classification-performance?rq=1
+ 
+"If the method you are using does not yield probabilities I suggest finding another method." Frank Harrell Aug 11 '13 at 17:31 
+ 
+
+
+#Computing Environment
+
+```{r, echo=FALSE}
+opts_knit$set(root.dir = wd)   ##THIS SETS YOUR WORKING DIRECTORY
+options(width=70)
+sessionInfo()
+print(wd)
+```
+```{r echo=FALSE}
+stopTime<-proc.time()
+```
+
+This took `r (stopTime-startTime)[1][[1]]` seconds to execute.
