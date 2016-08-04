@@ -131,84 +131,84 @@ output:
 
 ```
 
-
+\pagebreak  
 
 #Data, a number of different data sets are presented.
 
 ```{r data , echo=TRUE }
 
-   set.seed(123)   #Reproducible results
-   n.sims <- 10000 #No of Monte Carlo simulations for frequentist confidence intervals
-   prev.2 <- 0.2   #User defined prevalence, see estimates of PPV and NPV: 'ppv3' and 'npv3'
+   set.seed(123)   # Reproducible results
+   n.sims <- 10000 # No of Monte Carlo simulations for frequentist confidence intervals
+   prev.2 <- 0.2   # User defined prevalence, see estimates of PPV and NPV: 'ppv3' and 'npv3'
    
-   #157/308 disease free and 32/52 diseased have positive test results
+   # 157/308 disease free and 32/52 diseased have positive test results
    
 #    a00=151  
 #    a01=20
 #    a10=157 
 #    a11=32 
 
-   #95/156 disease free and 27/35 diseased have positive test results 
+   # 95/156 disease free and 27/35 diseased have positive test results 
    
 #    a00=61  
 #    a01=8
 #    a10=95
 #    a11=27   
    
-   #Bayesian Methods in Epidemiology p284
-   #Advanced Bayesian Methods for Medical Test Accuracy p51
-   #115/442 disease free and 818/1026 diseased have positive test results 
+   # Bayesian Methods in Epidemiology p284
+   # Advanced Bayesian Methods for Medical Test Accuracy p51
+   # 115/442 disease free and 818/1026 diseased have positive test results 
    
 #    a00=327
 #    a01=208
 #    a10=115
 #    a11=818 
      
-   #STATISTICS WITH CONFIDENCE Altman 200 p109...
-   #16/80 disease free and 36/40 diseased have positive test results
+   # STATISTICS WITH CONFIDENCE Altman 200 p109...
+   # 16/80 disease free and 36/40 diseased have positive test results
  
 #    a00=64  
 #    a01=4
 #    a10=16 
 #    a11=36 
    
-   #Bayesian Methods in Epidemiology table 7.25
-   #2908/73113 disease free and 262/287 diseased have positive test results 
+   # Bayesian Methods in Epidemiology table 7.25
+   # 2908/73113 disease free and 262/287 diseased have positive test results 
    
 #    a00=70205
 #    a01=25
 #    a10=2908
 #    a11=262 
    
-   #Bayesian Methods in Epidemiology table 7.26
-   #3216/70332 disease free and 76/117 diseased have positive test results 
+   # Bayesian Methods in Epidemiology table 7.26
+   # 3216/70332 disease free and 76/117 diseased have positive test results 
    
 #    a00=67116
 #    a01=41
 #    a10=3216
 #    a11=76 
    
-   #Make up some data with low count in cells to see performance
+   # Make up some data with low count in cells to see performance
 
 #    a00=64  
 #    a01=1
 #    a10=16 
 #    a11=36  
    
-   #breast mammogram data, http://theincidentaleconomist.com/wordpress/healthcare-triage-bayes-theorem/
+   # breast mammogram data,   http://theincidentaleconomist.com/wordpress/healthcare-triage-bayes-theorem/
    
 #    a00=127344  
 #    a01=118
 #    a10=13212
 #    a11=610  
    
-    #http://jco.ascopubs.org/content/29/35/4620.full.pdf
-    #Development and Independent Validation of a Prognostic Assay for Stage II Colon Cancer Using Formalin-Fixed Paraffin-Embedded Tissue. Reconstructed from the 'validation set' data in table 1.
+    # http://jco.ascopubs.org/content/29/35/4620.full.pdf
+    # Development and Independent Validation of a Prognostic Assay for Stage II Colon Cancer Using Formalin-Fixed Paraffin-Embedded Tissue. Reconstructed from the 'validation set' data in table 1.
    
-    N1<-59 ## true positives
-    S1<-33 ## positive calls 
-    N2<-85 ## true negatives
-    S2<-61 ## negative calls
+    N1<-59 # true positives
+    S1<-33 # positive calls 
+    N2<-85 # true negatives
+    S2<-61 # negative calls
    
     a00=S2  
     a01=N1-S1
@@ -217,8 +217,6 @@ output:
  
     
 ```
-
-
 
 #Contingency Table
 
@@ -359,7 +357,8 @@ output:
 
 ##On the other hand  among those who have the disease, the test is negative `r (LRneg)` times less often compared to those without the disease.
 
- 
+\pagebreak  
+
 ##Confidence intervals for likelihood ratios (care required for se calculation), positive
 
 ```{r LRp cis,  echo=TRUE, results='markup'}  
@@ -394,6 +393,8 @@ output:
 
   
 ```
+
+\pagebreak  
 
 ##Predicted values based on user defined prevalence  
  
@@ -645,6 +646,8 @@ cat("model{
             debug=F, DIC=FALSE, bugs.seed=2, codaPkg=F)
   
 ```
+ 
+\pagebreak   
  
 ##Re-execute analysis using different prior...
  
