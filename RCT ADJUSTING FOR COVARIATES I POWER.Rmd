@@ -37,17 +37,17 @@ Here, we perform an investigation of adjusted and unadjusted power in the settin
         })
 ```
 
-```{r prerequisites, echo=FALSE}
+```{r prerequisites, echo=FALSE ,eval=TRUE}
  
         where<-"home" #this is used in the sourced program 
  
-        path <- "GIT\\programs-master"  
+        path <- "GIT\\programs-master\\programs"  
      
         work<-    paste("X:/", path, sep = "")
         nonwork<- paste("~/", path, sep = "")
         if (where=="home") {wd<- nonwork} else {wd<-work}
         
-        path2 <- "CUSTOMER\\SYROS\\CLIA VAIDATION RARalpha\\VACUFUGE\\DATA"  
+        path2 <- " "  
         work2<-    paste("X:/", path2, sep = "")
         nonwork2<- paste("~/X/", path2, sep = "")
         
@@ -99,6 +99,7 @@ Here, we perform an investigation of adjusted and unadjusted power in the settin
     bias <-  array(NA, dim=c(length(N),6))            # object to capture summary coeff estimates
 
 ```
+\pagebreak
 
 # Function to investigate power for a RCT contingent on the analyses perfomed (adjusted and unadjusted)
 
@@ -117,15 +118,15 @@ for (j in 1:length(N)){
        # Hyp the effect of age on outcome, a unit change in outcome over the whole age range, 
        # so ~0.02 effect on outcome for each increase in age of 1 year
        effect.of.age <- 1/(65-18)       
-       effect.of.sex <- 5                # Hyp the effect of sex on outcome
-       effect.of.treatment <- 1          # Hyp the treatment effect on outcome
+       effect.of.sex <- 5                           # Hypothesize the effect of sex on outcome
+       effect.of.treatment <- 1                     # Hypothesize the treatment effect on outcome
        
        # Hypothesize baseline version of response on outcome, 
        # a unit increase results in 0.5 increase in outcome, 
        # strong predictor so 5 over the baseline range
        effect.of.baseline <- 1/2          
        intercept <- 100
-       noise <- 5                        # random error
+       noise <- 5                                   # random error
        
        #collect the true parmaeters to see how well we recover them
        covp <- c(intercept,  effect.of.baseline,  effect.of.sex, 
@@ -266,7 +267,6 @@ for (j in 1:length(N)){
        Y <- effect.of.sex*(sex=="M") + effect.of.age*age + effect.of.baseline*baseline + 
        effect.of.treatment*treat + rnorm(n, intercept, noise)
      
-       #~~~~~~~~~~~~
        # alternative data creation       
        dat <- data.frame( baseline=baseline, treat=treat, sex=sex, age=age)
 
@@ -277,12 +277,12 @@ for (j in 1:length(N)){
    
        # the simulated data
        y_norm <- rnorm(800, X%*%betas, noise)
-       #~~~~~~~~~~~~
-       
+   
        lm( Y ~      baseline + sex + age + treat)
+       
        lm( y_norm ~ baseline + sex + age + treat)
        
-       #~~~~~~~~~~~~
+ 
        
        
 ```
@@ -295,6 +295,8 @@ for (j in 1:length(N)){
        dd <- datadist(d, data=d) ; options(datadist="dd")
       
 ```
+
+\pagebreak
 
 # Bayesian analysis using STAN, the model statement
 
@@ -348,7 +350,6 @@ for (j in 1:length(N)){
       
 ```
 
-
 # Model assumption check
 
 ```{r echo=TRUE, fig.cap="Check chains are mixing" }  
@@ -363,7 +364,10 @@ for (j in 1:length(N)){
     plot(m1)
     
 ```
+\pagebreak 
+
 # Plot the predicted effects, counterfactual samples of 100 patients are also simulated and plotted.   
+
 # Treatment effect
 
 
@@ -395,7 +399,8 @@ for (j in 1:length(N)){
   
         # mean and response outcome plot 
         plot( Y ~ x  , type="n", xlab=paste(namez), ylab="Response", xlim=c(-0.2,1.2 ), 
-        ylim=c(min( R.sim1,na.rm=T)*1, max( R.sim1, na.rm=T)*1), xaxt = "n")          # get appropriate y range
+        # get appropriate y range
+        ylim=c(min( R.sim1,na.rm=T)*1, max( R.sim1, na.rm=T)*1), xaxt = "n")          
         axis(side = 1,   at = c(0,1), labels = c(0,1),     tck=-.05) # better ticks on x axis
         # plot this info
         lines( x , mu.mean )                                         # plot this info
@@ -428,7 +433,7 @@ for (j in 1:length(N)){
         
 ```{r echo=TRUE, results='hide', fig.cap="Effects of treatment on outcome, simulated response outcomes left panel, mean response right panel", fig.show='asis'}   
     
-        nn<-100 #* just plot this number of patient rather than 800
+        nn<-100 # just plot this number of patient rather than 800
         
         par(mfrow=c(1,1))
         P.baseline <- median(d$baseline)                     # Hold baseline
@@ -495,6 +500,8 @@ for (j in 1:length(N)){
 
 ```
 
+\pagebreak
+
 # For completion the effects of the other covariates on outcome; age
 
 ```{r echo=FALSE, results='hide',   fig.cap="Effects of age on outcome, simulated response outcomes left panel, mean response right panel", fig.show='asis'}    
@@ -557,6 +564,8 @@ for (j in 1:length(N)){
       
 ```
 
+\pagebreak
+
 # Baseline effect on outcome
 
 ```{r echo=FALSE, results='hide',   fig.cap="Effects of baseline on outcome, simulated response outcomes left panel, mean response right panel", fig.show='asis'}    
@@ -610,6 +619,8 @@ for (j in 1:length(N)){
        
 
 ```
+
+\pagebreak
 
 # Effect on outcome; sex. There is no real need to show treatment as well, as no interaction was modelled.
 
@@ -696,7 +707,7 @@ for (j in 1:length(N)){
       
       foo <- (post$b2)
       
-       mtext(side=1, line=-1, text=paste(namez ,"effect adjusted to age", P.age,"; sex coded", P.sex,"; baseline", p4(P.baseline), sep=" "), adj=0, outer=T, cex=.7) 
+       mtext(side=1, line=-1, text=paste(namez ,"effect adjusted to age", P.age,"; baseline", p4(P.baseline), sep=" "), adj=0, outer=T, cex=.7) 
      
        mtext( line=-2, text=paste(namez ," mean effect ", p2(mean(foo,na.rm=T)),", 95% CI (",p2(quantile(foo, c(.025),na.rm=T)), ", ", p2(quantile(foo, c(0.975),na.rm=T)),"), p>0 = ", mean(foo>0), sep="") ,outer = TRUE, cex = 1      ) 
  
@@ -714,14 +725,16 @@ for (j in 1:length(N)){
           
           
           
-       mtext(side=1, line=-1, text=paste(namez ,"effect adjusted to age", P.age,"; sex coded", P.sex,"; baseline", p4(P.baseline), sep=" "), adj=0, outer=T, cex=.7) 
+       mtext(side=1, line=-1, text=paste(namez ,"effect adjusted to age", P.age,"; baseline", p4(P.baseline), sep=" "), adj=0, outer=T, cex=.7) 
      
       
        
               mtext( line=-3, text=paste(namez ," mean effect ", p2(mean(foo)),", 95% CI (",p2(quantile(foo, c(.025))), ", ", p2(quantile(foo, c(0.975))),"), p>0 = ", mean(foo>0), sep="") ,outer = TRUE, cex = 1      ) 
       
 
-```              
+```      
+
+\pagebreak
 
 # Frequentist analysis, print the regression table (also print Bayesian)
 
@@ -805,6 +818,7 @@ for (j in 1:length(N)){
       ggplot(Predict(f,  age), anova=an, pval=TRUE)     
       
 ```            
+\pagebreak 
 
 # Show baseline main effect on outcome.  
 
@@ -882,11 +896,10 @@ for (j in 1:length(N)){
 #opts_knit$set(root.dir = wd)   ##THIS SETS YOUR WORKING DIRECTORY
 options(width=70)
 sessionInfo()
-print(wd)
+#print(wd)
 ```
 ```{r echo=FALSE}
 stopTime<-proc.time()
 ```
 This took `r (stopTime-startTime)[1][[1]]` seconds to execute. 
   
-
