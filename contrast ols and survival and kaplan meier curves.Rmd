@@ -1,0 +1,467 @@
+---
+title: Perform contrasts in linear regression and survival analysis. Then moving on to examples of some KM plots
+author: "Eamonn O'Brien"
+date: '`r format(Sys.time(), "%d %B, %Y")`'
+output:
+  pdf_document:
+    fig_caption: yes
+    fig_height: 6
+    fig_width: 8
+    number_sections: yes
+  html_document: default
+---
+
+# Introduction
+
+ 
+Showing how to perform contrasts in linear regression and survival analysis. Then moving on to examples of some KM plots
+
+
+```{r set-options, echo=FALSE, cache=FALSE, warning = FALSE}
+
+        rm(list=ls())
+        set.seed(874)
+        startTime<-proc.time()
+        library(knitr)
+        options(width=120)
+        opts_chunk$set(comment = "", warning = FALSE, message = FALSE,
+                       echo = TRUE, tidy = FALSE, size="tiny",  cache=FALSE,
+                       progress=TRUE,
+                       cache.path = 'program_Cache/',
+                       fig.path='figure/')
+         
+        knitr::knit_hooks$set(inline = function(x) {
+          knitr:::format_sci(x, 'md')
+        })
+        
+        
+         
+```
+
+```{r prerequisites, echo=FALSE ,eval=TRUE}
+ 
+        where<-"home" #this is used in the sourced program 
+ 
+        path <- "GIT\\programs"  
+     
+        work<-    paste("X:/", path, sep = "")
+        nonwork<- paste("~/", path, sep = "")
+        if (where=="home") {wd<- nonwork} else {wd<-work}
+        
+        path2 <- " "  
+        work2<-    paste("X:/", path2, sep = "")
+        nonwork2<- paste("~/X/", path2, sep = "")
+        
+        if (where=="home") {wd2<- nonwork2} else {wd2<-work2}
+        
+        work3<-    paste("X:/FUNCTIONS/R", sep = "")
+        nonwork3<- paste("~/X/FUNCTIONS/R", sep = "")
+        
+        if (where=="home") {wd3<- nonwork3} else {wd3<-work3}
+        setwd(wd)
+        opts_knit$set(root.dir = wd)      ##THIS SETS YOUR WORKING DIRECTORY
+        
+ 
+```
+ 
+ 
+```{r preliminaries perhaps , echo=FALSE, results='hide'}
+
+
+        list.of.packages <- c("rms","ggplot2", "reshape", "rethinking")
+        
+        new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+        if(length(new.packages)) install.packages(new.packages)
+        
+        sapply(X = list.of.packages, require, character.only = TRUE)
+
+
+        p3 <- function(x) {formatC(x, format="f", digits=3)}
+        p4 <- function(x) {formatC(x, format="f", digits=4)}
+        p2 <- function(x) {formatC(x, format="f", digits=2)}
+         p1 <- function(x) {formatC(x, format="f", digits=0)}
+        # p1 <- function(x) {print(formatC(x, format="f", digits=1),quote=FALSE)}
+        # p2 <- function(x) {print(formatC(x, format="f", digits=2),quote=FALSE)}
+        # p3 <- function(x) {print(formatC(x, format="f", digits=3),quote=FALSE)}
+        # p4 <- function(x) {print(formatC(x, format="f", digits=4),quote=FALSE)}
+        #perhaps help colour plot text based on loop count
+        is.even <- function(x){ x %% 2 == 0 }
+  
+```            
+
+# linear regression and contrasts (t dist)
+
+```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='asis' , cache=TRUE }  
+
+       n <- 200
+       intercept <- 100
+       noise <- 5   
+       # Hyp the effect of age on outcome, a unit change in outcome over the whole age range
+       # so ~0.02 effect on outcome for each increase in age of 1 year
+       effect.of.age <- 1/(65-18)       
+       effect.of.sex <- 5         # Hypothesize the effect of sex on outcome
+       effect.of.treatment <- 1   # Hypothesize the treatment effect on outcome
+       
+       # Hypothesize baseline version of response on outcome, 
+       # a unit increase results in 0.5 increase in outcome, 
+       # strong predictor so 5 over the baseline range
+       effect.of.baseline <- 1/2          
+                                      # random error 
+   
+       # covariate effects
+       baseline <- runif(n,100,110)                 # baseline effect
+       treat <- 1*(runif(n)<0.5)                    # randomised treatment effect
+       fact <- c(rep("a", n/4), rep("b", n/4), rep("c", n/4), rep("d", n/4))  # Generate grp
+       age <- sample(x=18:65, size=n, replace=TRUE) # Generate age covariate
+    
+      # create the outcome, with random error
+        Y <- 2*(fact=="b")+  3*(fact=="c")+  4*(fact=="d") +
+          effect.of.age*age + effect.of.baseline*baseline +
+          effect.of.treatment*treat + rnorm(n, intercept, noise)
+    
+      # prepare for analysis
+       d <- data.frame(Y=Y, baseline=baseline, treat=treat, 
+                      fact=factor(fact),  age=age)
+      
+       dd <- datadist(d, data=d)
+       options(datadist="dd")
+    
+```            
+
+# my function for contrasts (t dist)
+
+```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='asis' , cache=TRUE }         
+       
+     lincom <- function (object, ref, comp) {
+        
+        var <- vcov(object, regcoef.only = TRUE, intercepts = "none")
+
+        c1<-var[, grepl(comp, colnames(var))  ]
+        var1<-c1[ grepl(comp, names(c1))  ]
+        
+        c1<-var[, grepl(ref, colnames(var))  ]
+        var2<-c1[ grepl(ref, names(c1))  ]
+        
+        c1<-var[, grepl(comp, colnames(var))  ]
+        cov<-c1[ grepl(ref, names(c1))  ]
+        
+        
+        comp1<-object$coef[grepl(comp,   names(object$coef ))   ][[1]]
+        ref1<- object$coef[grepl(ref,    names(object$coef ))   ][[1]]
+        
+        df <- qt(.975,  object$df.residual) # from harrell contrast.rms
+        
+        namez<-c("comp v", "ref", "est", "Lower95%CI", "Upper95%CI")
+        res<-c(comp,ref,(comp1-ref1),
+                (comp1-ref1+c(-1,1)*
+                            df*sqrt(var1[[1]]+var2[[1]]-2*cov[[1]])))
+                
+               res <- c( res[1:2], sprintf(fmt="%.15s", res[3:5]))
+  
+        names(res)<-namez
+        return(res)
+        
+}
+      
+```            
+
+# variance covariance matrix
+
+
+```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='asis' , cache=TRUE } 
+
+     f <- ols(Y ~ baseline + fact + age + treat, d)
+     print(kable(vcov(f)))
+     
+```            
+
+\clearpage
+
+# confidence intervals
+
+```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='asis' , cache=TRUE } 
+
+ 
+    d$fact <- relevel( d$fact, ref="a")           # no need for this first time
+    f <- ols(Y ~ baseline + fact + age + treat, d)
+    print(kable(confint(f)))
+    
+    
+```            
+
+# my function, compare level c to level d
+
+
+```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='asis' , cache=TRUE }     
+
+    print(kable (lincom(f, ref="fact=d", comp= "fact=c") ) )
+    
+```            
+
+# relevel to get a contrast comparing level c to level d
+
+
+```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='asis' , cache=TRUE } 
+
+    d$fact <- relevel( d$fact, ref="d")
+    f <- ols(Y ~ baseline + fact + age + treat, d)
+    print(kable(confint(f)    )) 
+     
+```            
+
+# Harrell's contrast function
+
+```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='markup' , cache=TRUE } 
+
+    x <- contrast(f, list(fact="d"), list(fact="c")  )
+    print(x, latex=TRUE, file='') 
+     
+```            
+
+\clearpage
+
+# survival analysis and contrasts (z dist)
+
+```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='asis' , cache=TRUE }  
+
+  
+        n <- 1000
+        set.seed(731)
+        age <- 50 + 12*rnorm(n)
+        label(age) <- "Age"
+        grp <- factor(sample(c('a','b','c','d'), n, 
+                             rep=TRUE, prob=c(.25, .25,.25,.25)))
+        cens <- 15*runif(n)
+        
+        h <- .02*exp(.04*(age-50)+.4*(grp=='b')+.6*(grp=='c')+.8*(grp=='d'))
+        
+        dt <- -log(runif(n))/h
+        label(dt) <- 'Follow-up Time'
+        
+        e <- ifelse(dt <= cens,1,0)
+        dt <- pmin(dt, cens)
+        units(dt) <- "Year"
+        dd <- datadist(age, grp)
+        options(datadist='dd')
+        
+        S <- Surv(dt,e)
+        f <- cph(S ~ (age) + grp, x=TRUE, y=TRUE)
+        # cox.zph(f, "rank")             # tests of PH
+        print(kable(anova(f)))
+        #print(kable(f))
+
+```            
+
+# variance covariance matrix
+
+
+```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='asis' , cache=TRUE } 
+
+       print(kable(vcov(f)))
+     
+```        
+
+\clearpage
+
+# Another function for survival analysis contrasts              
+                
+```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='asis' , cache=TRUE } 
+ 
+
+      lincom.cph <- function (object, ref, comp) {
+        
+        var <- vcov(object, regcoef.only = TRUE, intercepts = "none")
+        
+        c1<-var[, grepl(comp, colnames(var))  ]
+        var1<-c1[ grepl(comp, names(c1))  ]
+        
+        c1<-var[, grepl(ref, colnames(var))  ]
+        var2<-c1[ grepl(ref, names(c1))  ]
+        
+        c1<-var[, grepl(comp, colnames(var))  ]
+        cov<-c1[ grepl(ref, names(c1))  ]
+        
+        
+        comp1<-object$coef[grepl(comp,   names(object$coef ))   ][[1]]
+        ref1<- object$coef[grepl(ref,    names(object$coef ))   ][[1]]
+        
+        namez<-c("comp v", "ref", "HR", "Lower95%CI", "Upper95%CI")
+        res<-c (comp,ref,exp(comp1-ref1),
+                exp(comp1-ref1+c(-1,1)*
+                      1.96*sqrt(var1[[1]]+var2[[1]]-2*cov[[1]])) )
+                
+        res <- c( res[1:2], sprintf(fmt="%.5s", res[3:5]))
+                
+        names(res)<-namez
+        return(res)
+        
+      }
+      
+```            
+
+# my function, compare level c to level d
+
+
+```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='asis' , cache=TRUE }
+       
+      print(kable(lincom.cph(f, ref="grp=d", comp="grp=c")))
+      
+```            
+
+# Harrell function, compare level c to level d
+
+
+```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='asis' , cache=TRUE }
+      print(kable(summary(f, grp=c('d'), est.all=F) ))  
+      
+```        
+
+# Harrell again
+                
+                
+```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='markup' , cache=TRUE }     
+
+      x <- contrast(f, list(grp="c"), list(grp="d")  )
+      print(x, X=F, fun=exp  )
+```        
+                
+                
+```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='asis' , cache=TRUE } 
+ 
+      plot( summary(f, grp=c('a'), est.all=F), log=T )
+
+```        
+
+\clearpage
+
+# Explore simple survival plots              
+                
+```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='asis' , cache=TRUE } 
+
+      library(ggfortify)
+      library(survival)
+      f <- survfit(S ~   grp )
+      autoplot(f)
+      autoplot(f, facets = TRUE, nrow=4)
+
+```        
+
+\clearpage
+
+# Explore simple survival plots              
+                
+```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='asis' , cache=TRUE } 
+
+      library("survminer")
+      ggsurvplot(f, pval = TRUE, 
+                 break.time.by = 3,
+                 risk.table = TRUE,
+                 risk.table.col = "strata",
+                 risk.table.height = 0.5, 
+                 ggtheme = theme_bw(),
+                 legend.labs = c("A", "B", "C", "D"))
+
+```        
+
+\clearpage
+
+# Explore simple survival plots              
+                
+```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='asis' , cache=TRUE } 
+ 
+      f2 <- npsurv(S ~ grp)
+       
+      x <- c("#e41a1c","#377eb8","#4daf4a","#984ea3")
+      
+       #x <- rainbow(40) 
+       #x <- x[c(1,5,36,27)]
+       
+      
+      survplot(f2,  n.risk=TRUE, levels.only=T, conf.int=T,
+               aehaz=TRUE,
+               conf=c("bands"), 
+               col.fill=gray(seq(.95, .75, length=4)),
+               #col.fill= c(rgb(0,0,0,0.1)), 
+               type=c("kaplan-meier"),
+               lty=1,  col=x, xlab="Months", abbrev.label=T, 
+               label.curves = list(keys = "lines"), #bty='n',
+               y.n.risk= 0, cex.n.risk=.6, time.inc=2)
+      #lines(f2,  col= x) 
+
+```        
+
+\clearpage
+
+# Explore simple survival plots              
+                
+```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='asis' , cache=TRUE } 
+
+        x <- rainbow(40) 
+        x <- x[c(1,5,36,27)]
+        
+        survplot(f2,  n.risk=TRUE, levels.only=T, conf.int=T,
+                 aehaz=TRUE,
+                 conf=c("bands"), 
+                 col.fill=gray(seq(.94, .88, length=4)),
+                 #col.fill= c(rgb(0,0,0,0.1)), 
+                 type=c("kaplan-meier"),
+                 lty=4,  col=x,
+                 xlab="Months", abbrev.label=T, 
+                 label.curves=list(method="arrow", cex=.8),
+                 #label.curves=list(keys="lines"), 
+                 y.n.risk= 0, cex.n.risk=.5, time.inc=2)
+
+```        
+
+\clearpage
+
+# Explore simple survival plots              
+                
+```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='asis' , cache=TRUE } 
+
+      setwd(wd3)
+      source("Alternative KM plot.R", echo = F) # note this code is stored elsewhere
+      setwd(wd)
+
+
+kmplot(f2, mark='¬', simple=F,
+  xaxis.at=seq(0,14,2), 
+  xaxis.lab=seq(0,14,2), # n.risk.at
+  lty.surv=c(1,1), lwd.surv=1, col.surv=rainbow(4), # survival.curves
+       lty.ci=0, lwd.ci=.7, col.ci=rainbow(4), #0 ci not plottrd
+   group.names=c('a','b','c','d'),
+	group.order=c(1,2,3,4), # order of appearance in the n.risk.at table and legend.
+	extra.left.margin=6, label.n.at.risk=T, draw.lines=TRUE,
+	cex.axis=0.8, xlab='Time to event (months)', ylab='Survival probability', # labels
+	grid=TRUE, lty.grid=1, lwd.grid=1, col.grid=grey(.9),
+	legend=T, loc.legend='bottomleft',
+	cex.lab=1.1, xaxs='r', bty='L', las=1, tcl=-.2  # other parameters passed to plot()
+)
+title(main='test', adj=.1, font.main=1, line=0.5, cex.main=1)
+
+```        
+ 
+```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='markup' , cache=TRUE } 
+ # exponential distribution hazard rate estimates
+print(f2$numevents/f2$exposure, digits=4)
+
+
+```
+
+\clearpage
+\pagebreak 
+
+
+# Computing Environment
+
+```{r, echo=FALSE}
+#opts_knit$set(root.dir = wd)   ##THIS SETS YOUR WORKING DIRECTORY
+options(width=70)
+sessionInfo()
+#print(wd)
+```
+```{r echo=FALSE}
+stopTime<-proc.time()
+```
+This took `r (stopTime-startTime)[1][[1]]` seconds to execute. 
+  
